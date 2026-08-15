@@ -1,0 +1,23 @@
+# Logs and crashes
+*.log
+hs_err_pid*
+replay_pid*
+
+# Scratch and generator scripts
+scratch/
+fix_*.js
+test_tune.py
+tune_exact.py
+.git_backup_*
+
+# Dependency and build directories
+node_modules/
+dist/
+target/
+.idea/
+*.iml
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
