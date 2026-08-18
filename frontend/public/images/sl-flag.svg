@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50" width="100" height="50">
+  <!-- Outer Gold Border -->
+  <rect width="100" height="50" fill="#FFBE29"/>
+  
+  <!-- Left Stripes: Teal/Green & Orange/Saffron -->
+  <rect x="5" y="5" width="12" height="40" fill="#00534E"/>
+  <rect x="19" y="5" width="12" height="40" fill="#EB7400"/>
+  
+  <!-- Main Crimson/Maroon Box with Gold Lion & Bo Leaves -->
+  <rect x="34" y="5" width="61" height="40" fill="#8D153A"/>
+  
+  <!-- 4 Bo Leaves (Bo-peththi) in Corners -->
+  <path d="M37 8 Q41 12 37 15 Q39 10 37 8 Z" fill="#FFBE29"/>
+  <path d="M92 8 Q88 12 92 15 Q90 10 92 8 Z" fill="#FFBE29"/>
+  <path d="M37 42 Q41 38 37 35 Q39 40 37 42 Z" fill="#FFBE29"/>
+  <path d="M92 42 Q88 38 92 35 Q90 40 92 42 Z" fill="#FFBE29"/>
+  
+  <!-- Stylized Sri Lankan Lion with Sword -->
+  <g fill="#FFBE29" transform="translate(48, 14) scale(0.42)">
+    <circle cx="16" cy="12" r="7"/>
+    <path d="M22 10 L30 4 L32 6 L26 14 Z"/>
+    <path d="M8 14 C12 18 20 20 20 28 C16 30 10 28 8 20 Z"/>
+    <rect x="16" y="24" width="4" height="12"/>
+    <rect x="6" y="24" width="4" height="12"/>
+    <path d="M4 22 C0 16 2 10 8 6 C10 10 6 16 6 22 Z"/>
+  </g>
+</svg>

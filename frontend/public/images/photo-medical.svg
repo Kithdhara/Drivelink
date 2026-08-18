@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400" fill="none">
+  <defs>
+    <linearGradient id="medBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f2b3c"/>
+      <stop offset="50%" stop-color="#164e63"/>
+      <stop offset="100%" stop-color="#082f49"/>
+    </linearGradient>
+    <linearGradient id="screenGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="goldAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c6a15b"/>
+      <stop offset="100%" stop-color="#f5ce62"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background Clinic Room -->
+  <rect width="600" height="400" fill="url(#medBg)"/>
+  
+  <!-- Perspective Floor -->
+  <path d="M 0 280 L 600 280 L 600 400 L 0 400 Z" fill="#0b1c2b"/>
+  <line x1="0" y1="280" x2="600" y2="280" stroke="#0e7c7b" stroke-width="2" opacity="0.4"/>
+  <line x1="120" y1="280" x2="60" y2="400" stroke="#ffffff" stroke-width="0.5" opacity="0.08"/>
+  <line x1="280" y1="280" x2="240" y2="400" stroke="#ffffff" stroke-width="0.5" opacity="0.08"/>
+  <line x1="440" y1="280" x2="480" y2="400" stroke="#ffffff" stroke-width="0.5" opacity="0.08"/>
+
+  <!-- High-Tech Medical Diagnostic Monitor (Left) -->
+  <g transform="translate(60, 90)">
+    <!-- Stand -->
+    <rect x="90" y="150" width="12" height="70" rx="3" fill="#334155"/>
+    <ellipse cx="96" cy="220" rx="35" ry="8" fill="#1e293b"/>
+    <!-- Screen Bezel -->
+    <rect x="0" y="0" width="192" height="150" rx="10" fill="#0f172a" stroke="#475569" stroke-width="3"/>
+    <!-- Screen Face -->
+    <rect x="8" y="8" width="176" height="134" rx="6" fill="#031525"/>
+    <!-- Biometric ECG Waves -->
+    <path d="M 16 75 L 45 75 L 52 45 L 60 105 L 68 60 L 74 85 L 80 75 L 120 75 L 128 50 L 136 95 L 144 75 L 176 75" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="18" y="32" font-family="sans-serif" font-size="11" font-weight="bold" fill="#38bdf8">NTMI BIOMETRIC FITNESS</text>
+    <rect x="18" y="105" width="45" height="18" rx="4" fill="#22c55e" fill-opacity="0.2"/>
+    <text x="40.5" y="118" font-family="sans-serif" font-size="9" font-weight="bold" fill="#4ade80" text-anchor="middle">PASS · 100%</text>
+    <!-- Vision Snellen Chart Graphic -->
+    <rect x="120" y="98" width="48" height="32" rx="4" fill="#ffffff" fill-opacity="0.08"/>
+    <text x="144" y="112" font-family="sans-serif" font-size="10" font-weight="900" fill="#ffffff" text-anchor="middle">6 / 6</text>
+    <text x="144" y="124" font-family="sans-serif" font-size="7" font-weight="600" fill="#94a3b8" text-anchor="middle">VISION ACUITY</text>
+  </g>
+
+  <!-- Doctor / Medical Examiner Illustration (Right) -->
+  <g transform="translate(350, 70)">
+    <!-- Glow aura -->
+    <circle cx="120" cy="140" r="110" fill="#0e7c7b" opacity="0.15" filter="blur(20px)"/>
+    <!-- Doctor Coat & Stethoscope -->
+    <path d="M 50 330 C 55 240, 85 200, 120 190 C 155 200, 185 240, 190 330 Z" fill="#ffffff"/>
+    <path d="M 90 195 L 120 250 L 105 240 L 80 205 Z" fill="#e2e8f0"/>
+    <path d="M 150 195 L 120 250 L 135 240 L 160 205 Z" fill="#cbd5e1"/>
+    <!-- Stethoscope -->
+    <path d="M 98 198 C 98 250, 142 250, 142 198" fill="none" stroke="#0284c7" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="120" cy="245" r="7" fill="#c6a15b" stroke="#ffffff" stroke-width="2"/>
+    <!-- Head & Hair -->
+    <path d="M 100 155 L 100 200 C 110 206, 130 206, 140 200 L 140 155 Z" fill="#b45309" opacity="0.6"/>
+    <ellipse cx="120" cy="135" rx="32" ry="38" fill="#d97706" opacity="0.6"/>
+    <path d="M 88 125 C 86 85, 110 70, 120 70 C 140 70, 154 85, 152 125 C 146 110, 135 98, 120 98 C 105 98, 94 110, 88 125 Z" fill="#0f172a"/>
+  </g>
+
+  <!-- Floating Badge -->
+  <g transform="translate(40, 40)">
+    <rect width="210" height="34" rx="17" fill="#0b1c33" fill-opacity="0.8" stroke="url(#goldAccent)" stroke-width="1.2"/>
+    <circle cx="18" cy="17" r="7" fill="#22c55e"/>
+    <text x="35" y="21" font-family="sans-serif" font-size="11" font-weight="bold" fill="#ffffff">National Transport Medical</text>
+  </g>
+</svg>

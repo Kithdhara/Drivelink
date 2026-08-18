@@ -1,0 +1,610 @@
+import type {
+  AppState,
+  Application,
+  AppNotification,
+  AuditLog,
+  Complaint,
+  ExamBooking,
+  LicenseRecord,
+  Location,
+  MedicalAppointment,
+  Payment,
+  Schedule,
+  TrainerScheduleItem,
+  TrainingNote,
+  TrialBooking,
+  User,
+} from '../types';
+import { addDays, todayISO } from './utils';
+
+const PW = 'Password123!';
+const T = todayISO();
+
+function u(
+  id: string,
+  name: string,
+  nic: string,
+  email: string,
+  phone: string,
+  role: User['role'],
+  extra: Partial<User> = {},
+): User {
+  return {
+    id,
+    name,
+    nic,
+    email,
+    phone,
+    password: PW,
+    role,
+    active: true,
+    createdAt: addDays(-120),
+    ...extra,
+  };
+}
+
+export const users: User[] = [
+  u('u-app-1', 'Amara Perera', '199512345V', 'citizen@demo.gov', '0771234567', 'applicant', {
+    address: '42 Flower Road, Colombo 07',
+    dob: '1995-04-18',
+    gender: 'female',
+  }),
+  u('u-app-2', 'Kasun Fernando', '198823456V', 'kasun@mail.lk', '0712345678', 'applicant', {
+    address: '18 Lake Drive, Kandy',
+    dob: '1988-11-02',
+    gender: 'male',
+  }),
+  u('u-app-3', 'Nimali Silva', '199234567V', 'nimali@mail.lk', '0753456789', 'applicant', {
+    address: '9 Beach Road, Galle',
+    dob: '1992-07-21',
+    gender: 'female',
+  }),
+  u('u-app-4', 'Ruwan Jayasuriya', '197745678V', 'ruwan@mail.lk', '0764567890', 'applicant', {
+    address: '221 High Level Road, Nugegoda',
+    dob: '1977-01-30',
+    gender: 'male',
+  }),
+  u('u-app-5', 'Dilani Wickramasinghe', '200156789V', 'dilani@mail.lk', '0705678901', 'applicant', {
+    address: '55 Temple Road, Kurunegala',
+    dob: '2001-09-14',
+    gender: 'female',
+  }),
+  u('u-app-6', 'Tharindu Bandara', '199067890V', 'tharindu@mail.lk', '0726789012', 'applicant', {
+    address: '12 Station Road, Anuradhapura',
+    dob: '1990-03-08',
+    gender: 'male',
+  }),
+  u('u-app-7', 'Fathima Rahman', '199378901V', 'fathima@mail.lk', '0747890123', 'applicant', {
+    address: '88 Main Street, Batticaloa',
+    dob: '1993-12-05',
+    gender: 'female',
+  }),
+  u('u-app-8', 'Chamara Dias', '198489012V', 'chamara@mail.lk', '0788901234', 'applicant', {
+    address: '3 Hill Street, Nuwara Eliya',
+    dob: '1984-06-19',
+    gender: 'male',
+  }),
+  u('u-off-1', 'Priyantha Gunasekara', '197512000V', 'officer@demo.gov', '0112345601', 'officer', {
+    address: 'NMTA Headquarters, Colombo 05',
+  }),
+  u('u-coo-1', 'Sanduni Weerasinghe', '198612001V', 'coordinator@demo.gov', '0112345602', 'coordinator'),
+  u('u-exa-1', 'Lalith Senanayake', '197812002V', 'examiner@demo.gov', '0112345603', 'examiner'),
+  u('u-exa-2', 'Mahesh Karunaratne', '198012003V', 'examiner2@demo.gov', '0112345604', 'examiner'),
+  u('u-tra-1', 'Indika Rathnayake', '198512004V', 'trainer@demo.gov', '0112345605', 'trainer'),
+  u('u-tra-2', 'Roshan Peris', '198712005V', 'trainer2@demo.gov', '0112345606', 'trainer'),
+  u('u-med-1', 'Dr. Anoma Pathirana', '197212006V', 'medical@demo.gov', '0112345607', 'medical'),
+  u('u-adm-1', 'System Administrator', '196012007V', 'admin@demo.gov', '0112345600', 'admin'),
+];
+
+function personal(userId: string): Application['personal'] {
+  const usr = users.find((x) => x.id === userId)!;
+  return {
+    fullName: usr.name,
+    nic: usr.nic,
+    dob: usr.dob ?? '1990-01-01',
+    gender: usr.gender ?? 'other',
+    address: usr.address ?? 'Colombo',
+    phone: usr.phone,
+    email: usr.email,
+    bloodGroup: 'O+',
+    emergencyContact: '0770001111',
+  };
+}
+
+function doc(
+  id: string,
+  applicationId: string,
+  type: Application['documents'][number]['type'],
+  name: string,
+  verified?: boolean,
+): Application['documents'][number] {
+  return {
+    id,
+    applicationId,
+    type,
+    name,
+    dataUrl: '/images/license-card.png',
+    mimeType: 'image/png',
+    size: 180000,
+    uploadedAt: addDays(-10),
+    verified,
+  };
+}
+
+export const applications: Application[] = [
+  {
+    id: 'APP-1001',
+    applicantId: 'u-app-2',
+    type: 'new',
+    category: 'B',
+    status: 'submitted',
+    oneDayService: false,
+    personal: personal('u-app-2'),
+    documents: [
+      doc('d1', 'APP-1001', 'nic', 'kasun-nic.jpg'),
+      doc('d2', 'APP-1001', 'photo', 'kasun-photo.jpg'),
+    ],
+    createdAt: addDays(-2),
+    updatedAt: addDays(-2),
+  },
+  {
+    id: 'APP-1002',
+    applicantId: 'u-app-3',
+    type: 'new',
+    category: 'A',
+    status: 'medical_pending',
+    oneDayService: false,
+    personal: personal('u-app-3'),
+    documents: [
+      doc('d3', 'APP-1002', 'nic', 'nimali-nic.jpg', true),
+      doc('d4', 'APP-1002', 'photo', 'nimali-photo.jpg', true),
+    ],
+    createdAt: addDays(-8),
+    updatedAt: addDays(-3),
+  },
+  {
+    id: 'APP-1003',
+    applicantId: 'u-app-1',
+    type: 'new',
+    category: 'B',
+    status: 'medical_passed',
+    oneDayService: true,
+    personal: personal('u-app-1'),
+    documents: [
+      doc('d5', 'APP-1003', 'nic', 'amara-nic.jpg', true),
+      doc('d6', 'APP-1003', 'photo', 'amara-photo.jpg', true),
+      doc('d7', 'APP-1003', 'medical', 'amara-medical.pdf', true),
+    ],
+    createdAt: addDays(-18),
+    updatedAt: addDays(-4),
+  },
+  {
+    id: 'APP-1004',
+    applicantId: 'u-app-5',
+    type: 'new',
+    category: 'B1',
+    status: 'exam_pending',
+    oneDayService: false,
+    personal: personal('u-app-5'),
+    documents: [
+      doc('d8', 'APP-1004', 'nic', 'dilani-nic.jpg', true),
+      doc('d9', 'APP-1004', 'photo', 'dilani-photo.jpg', true),
+    ],
+    createdAt: addDays(-20),
+    updatedAt: addDays(-2),
+  },
+  {
+    id: 'APP-1005',
+    applicantId: 'u-app-6',
+    type: 'new',
+    category: 'C',
+    status: 'exam_passed',
+    oneDayService: false,
+    personal: personal('u-app-6'),
+    documents: [
+      doc('d10', 'APP-1005', 'nic', 'tharindu-nic.jpg', true),
+      doc('d11', 'APP-1005', 'photo', 'tharindu-photo.jpg', true),
+    ],
+    trainerType: 'department',
+    trainerId: 'u-tra-1',
+    createdAt: addDays(-40),
+    updatedAt: addDays(-6),
+  },
+  {
+    id: 'APP-1006',
+    applicantId: 'u-app-7',
+    type: 'new',
+    category: 'B',
+    status: 'trial_pending',
+    oneDayService: true,
+    personal: personal('u-app-7'),
+    documents: [
+      doc('d12', 'APP-1006', 'nic', 'fathima-nic.jpg', true),
+      doc('d13', 'APP-1006', 'photo', 'fathima-photo.jpg', true),
+    ],
+    trainerType: 'department',
+    trainerId: 'u-tra-1',
+    createdAt: addDays(-35),
+    updatedAt: addDays(-1),
+  },
+  {
+    id: 'APP-1007',
+    applicantId: 'u-app-8',
+    type: 'new',
+    category: 'B',
+    status: 'trial_passed',
+    oneDayService: false,
+    personal: personal('u-app-8'),
+    documents: [
+      doc('d14', 'APP-1007', 'nic', 'chamara-nic.jpg', true),
+      doc('d15', 'APP-1007', 'photo', 'chamara-photo.jpg', true),
+    ],
+    createdAt: addDays(-50),
+    updatedAt: addDays(-1),
+  },
+  {
+    id: 'APP-1008',
+    applicantId: 'u-app-4',
+    type: 'renewal',
+    category: 'B',
+    status: 'license_issued',
+    oneDayService: false,
+    personal: personal('u-app-4'),
+    documents: [
+      doc('d16', 'APP-1008', 'nic', 'ruwan-nic.jpg', true),
+      doc('d17', 'APP-1008', 'photo', 'ruwan-photo.jpg', true),
+      doc('d18', 'APP-1008', 'existing_license', 'ruwan-old-license.jpg', true),
+    ],
+    createdAt: addDays(-90),
+    updatedAt: addDays(-60),
+  },
+  {
+    id: 'APP-1009',
+    applicantId: 'u-app-4',
+    type: 'new',
+    category: 'C',
+    status: 'rejected',
+    oneDayService: false,
+    personal: personal('u-app-4'),
+    documents: [doc('d19', 'APP-1009', 'nic', 'ruwan-nic2.jpg', false)],
+    rejectionReason: 'NIC copy is illegible and does not match the applicant record. Please resubmit a clear colour scan.',
+    officerId: 'u-off-1',
+    createdAt: addDays(-25),
+    updatedAt: addDays(-22),
+  },
+  {
+    id: 'APP-1010',
+    applicantId: 'u-app-2',
+    type: 'renewal',
+    category: 'B',
+    status: 'submitted',
+    oneDayService: true,
+    personal: personal('u-app-2'),
+    documents: [
+      doc('d20', 'APP-1010', 'nic', 'kasun-renew-nic.jpg'),
+      doc('d21', 'APP-1010', 'existing_license', 'kasun-old.jpg'),
+    ],
+    createdAt: addDays(-1),
+    updatedAt: addDays(-1),
+  },
+  {
+    id: 'APP-1011',
+    applicantId: 'u-app-3',
+    type: 'new',
+    category: 'A1',
+    status: 'medical_failed',
+    oneDayService: false,
+    personal: personal('u-app-3'),
+    documents: [
+      doc('d22', 'APP-1011', 'nic', 'nimali-a1-nic.jpg', true),
+      doc('d23', 'APP-1011', 'photo', 'nimali-a1-photo.jpg', true),
+    ],
+    createdAt: addDays(-15),
+    updatedAt: addDays(-7),
+  },
+  {
+    id: 'APP-1012',
+    applicantId: 'u-app-5',
+    type: 'new',
+    category: 'A',
+    status: 'exam_failed',
+    oneDayService: false,
+    personal: personal('u-app-5'),
+    documents: [
+      doc('d24', 'APP-1012', 'nic', 'dilani-a-nic.jpg', true),
+      doc('d25', 'APP-1012', 'photo', 'dilani-a-photo.jpg', true),
+    ],
+    createdAt: addDays(-30),
+    updatedAt: addDays(-5),
+  },
+];
+
+export const locations: Location[] = [
+  { id: 'loc-med-1', name: 'NMTA Medical Centre — Colombo', address: '341 Baseline Road', city: 'Colombo 09', type: 'medical', capacity: 40, phone: '0112694001' },
+  { id: 'loc-med-2', name: 'Regional Medical Unit — Kandy', address: '12 Peradeniya Road', city: 'Kandy', type: 'medical', capacity: 24, phone: '0812234002' },
+  { id: 'loc-med-3', name: 'Southern Medical Desk — Galle', address: '4 Light House Street', city: 'Galle', type: 'medical', capacity: 16, phone: '0912244003' },
+  { id: 'loc-ex-1', name: 'Werahera Examination Complex', address: 'NMTA Campus, Werahera', city: 'Boralesgamuwa', type: 'exam', capacity: 80, phone: '0112618001' },
+  { id: 'loc-ex-2', name: 'Kandy Written Test Hall', address: 'Department Compound', city: 'Kandy', type: 'exam', capacity: 40, phone: '0812234010' },
+  { id: 'loc-tr-1', name: 'Werahrera Trial Yard', address: 'NMTA Campus Circuit', city: 'Boralesgamuwa', type: 'trial', capacity: 20, phone: '0112618002' },
+  { id: 'loc-tr-2', name: 'Katukurunda Driving Circuit', address: 'Katukurunda Track', city: 'Kalutara', type: 'trial', capacity: 16, phone: '0342224011' },
+  { id: 'loc-tr-3', name: 'Kundasale Trial Ground', address: 'Kundasale Training Centre', city: 'Kandy', type: 'trial', capacity: 12, phone: '0812424012' },
+];
+
+function sch(
+  id: string,
+  type: Schedule['type'],
+  locationId: string,
+  date: string,
+  start: string,
+  end: string,
+  capacity: number,
+  booked: number,
+  examKind?: Schedule['examKind'],
+): Schedule {
+  return { id, type, locationId, date, startTime: start, endTime: end, capacity, booked, examKind };
+}
+
+export const schedules: Schedule[] = [
+  sch('s-m1', 'medical', 'loc-med-1', addDays(1), '08:30', '10:30', 12, 7),
+  sch('s-m2', 'medical', 'loc-med-1', addDays(1), '11:00', '13:00', 12, 12),
+  sch('s-m3', 'medical', 'loc-med-1', addDays(2), '08:30', '10:30', 12, 3),
+  sch('s-m4', 'medical', 'loc-med-1', addDays(3), '14:00', '16:00', 12, 1),
+  sch('s-m5', 'medical', 'loc-med-2', addDays(1), '09:00', '11:00', 8, 2),
+  sch('s-m6', 'medical', 'loc-med-2', addDays(4), '09:00', '11:00', 8, 0),
+  sch('s-m7', 'medical', 'loc-med-3', addDays(2), '10:00', '12:00', 6, 1),
+  sch('s-m8', 'medical', 'loc-med-1', T, '09:00', '11:00', 12, 6),
+  sch('s-e1', 'exam', 'loc-ex-1', addDays(3), '09:00', '11:00', 30, 18, 'computer'),
+  sch('s-e2', 'exam', 'loc-ex-1', addDays(5), '09:00', '11:00', 30, 9, 'written'),
+  sch('s-e3', 'exam', 'loc-ex-1', addDays(7), '13:30', '15:30', 30, 4, 'computer'),
+  sch('s-e4', 'exam', 'loc-ex-2', addDays(4), '09:00', '11:00', 20, 20, 'written'),
+  sch('s-e5', 'exam', 'loc-ex-2', addDays(8), '09:00', '11:00', 20, 2, 'computer'),
+  sch('s-e6', 'exam', 'loc-ex-1', T, '09:00', '11:00', 30, 12, 'computer'),
+  sch('s-e7', 'exam', 'loc-ex-1', addDays(-5), '09:00', '11:00', 30, 28, 'written'),
+  sch('s-t1', 'trial', 'loc-tr-1', addDays(2), '08:00', '10:00', 8, 5),
+  sch('s-t2', 'trial', 'loc-tr-1', addDays(4), '10:30', '12:30', 8, 2),
+  sch('s-t3', 'trial', 'loc-tr-2', addDays(3), '08:00', '10:00', 6, 1),
+  sch('s-t4', 'trial', 'loc-tr-3', addDays(6), '08:30', '10:30', 6, 0),
+  sch('s-t5', 'trial', 'loc-tr-1', T, '08:00', '10:00', 8, 6),
+  sch('s-t6', 'trial', 'loc-tr-1', addDays(-1), '08:00', '10:00', 8, 8),
+];
+
+export const medicals: MedicalAppointment[] = [
+  {
+    id: 'med-1',
+    applicationId: 'APP-1002',
+    applicantId: 'u-app-3',
+    scheduleId: 's-m8',
+    locationId: 'loc-med-1',
+    date: T,
+    time: '09:00',
+    status: 'booked',
+  },
+  {
+    id: 'med-2',
+    applicationId: 'APP-1003',
+    applicantId: 'u-app-1',
+    scheduleId: 's-m1',
+    locationId: 'loc-med-1',
+    date: addDays(-4),
+    time: '08:30',
+    status: 'completed',
+    result: 'pass',
+    remarks: 'Fit to drive. Corrective lenses required.',
+    officerId: 'u-med-1',
+    vision: '6/6 (corrected)',
+    hearing: 'Normal',
+    bloodPressure: '118/76',
+  },
+  {
+    id: 'med-3',
+    applicationId: 'APP-1011',
+    applicantId: 'u-app-3',
+    scheduleId: 's-m1',
+    locationId: 'loc-med-1',
+    date: addDays(-7),
+    time: '08:30',
+    status: 'completed',
+    result: 'fail',
+    remarks: 'Uncorrected visual acuity below statutory minimum. Referred to ophthalmology.',
+    officerId: 'u-med-1',
+    vision: '6/18',
+    hearing: 'Normal',
+    bloodPressure: '124/80',
+  },
+];
+
+export const exams: ExamBooking[] = [
+  {
+    id: 'ex-1',
+    applicationId: 'APP-1004',
+    applicantId: 'u-app-5',
+    scheduleId: 's-e6',
+    locationId: 'loc-ex-1',
+    kind: 'computer',
+    date: T,
+    time: '09:00',
+    status: 'booked',
+    attempt: 1,
+  },
+  {
+    id: 'ex-2',
+    applicationId: 'APP-1005',
+    applicantId: 'u-app-6',
+    scheduleId: 's-e7',
+    locationId: 'loc-ex-1',
+    kind: 'written',
+    date: addDays(-5),
+    time: '09:00',
+    status: 'completed',
+    result: 'pass',
+    score: 86,
+    remarks: 'Strong knowledge of road signs.',
+    examinerId: 'u-exa-1',
+    attempt: 1,
+  },
+  {
+    id: 'ex-3',
+    applicationId: 'APP-1006',
+    applicantId: 'u-app-7',
+    scheduleId: 's-e7',
+    locationId: 'loc-ex-1',
+    kind: 'computer',
+    date: addDays(-12),
+    time: '09:00',
+    status: 'completed',
+    result: 'pass',
+    score: 78,
+    examinerId: 'u-exa-2',
+    attempt: 1,
+  },
+  {
+    id: 'ex-4',
+    applicationId: 'APP-1012',
+    applicantId: 'u-app-5',
+    scheduleId: 's-e7',
+    locationId: 'loc-ex-1',
+    kind: 'written',
+    date: addDays(-5),
+    time: '09:00',
+    status: 'completed',
+    result: 'fail',
+    score: 42,
+    remarks: 'Insufficient knowledge of right-of-way rules.',
+    examinerId: 'u-exa-1',
+    attempt: 1,
+  },
+];
+
+export const trials: TrialBooking[] = [
+  {
+    id: 'tr-1',
+    applicationId: 'APP-1006',
+    applicantId: 'u-app-7',
+    scheduleId: 's-t5',
+    locationId: 'loc-tr-1',
+    date: T,
+    time: '08:00',
+    trainerType: 'department',
+    trainerId: 'u-tra-1',
+    status: 'booked',
+    attempt: 1,
+  },
+  {
+    id: 'tr-2',
+    applicationId: 'APP-1007',
+    applicantId: 'u-app-8',
+    scheduleId: 's-t6',
+    locationId: 'loc-tr-1',
+    date: addDays(-1),
+    time: '08:00',
+    trainerType: 'private',
+    status: 'completed',
+    result: 'pass',
+    remarks: 'Confident control. Minor stall at hill start.',
+    examinerId: 'u-exa-1',
+    attempt: 1,
+  },
+];
+
+export const licenses: LicenseRecord[] = [
+  {
+    id: 'lic-1',
+    applicationId: 'APP-1008',
+    applicantId: 'u-app-4',
+    licenseNumber: 'B23-441902',
+    category: 'B',
+    issuedAt: addDays(-60),
+    expiresAt: addDays(365 * 8 - 60),
+    status: 'active',
+  },
+];
+
+export const payments: Payment[] = [
+  { id: 'pay-1', userId: 'u-app-1', applicationId: 'APP-1003', type: 'application', amount: 2500, method: 'card', status: 'paid', reference: 'NMTA-APP1003-A', cardLast4: '4242', createdAt: addDays(-18) + 'T09:12:00' },
+  { id: 'pay-2', userId: 'u-app-1', applicationId: 'APP-1003', type: 'one_day', amount: 7500, method: 'card', status: 'paid', reference: 'NMTA-APP1003-OD', cardLast4: '4242', createdAt: addDays(-18) + 'T09:13:00' },
+  { id: 'pay-3', userId: 'u-app-1', applicationId: 'APP-1003', type: 'medical', amount: 1800, method: 'wallet', status: 'paid', reference: 'NMTA-APP1003-M', createdAt: addDays(-10) + 'T14:02:00' },
+  { id: 'pay-4', userId: 'u-app-2', applicationId: 'APP-1001', type: 'application', amount: 2500, method: 'bank', status: 'paid', reference: 'NMTA-APP1001-A', createdAt: addDays(-2) + 'T11:20:00' },
+  { id: 'pay-5', userId: 'u-app-4', applicationId: 'APP-1008', type: 'renewal', amount: 3500, method: 'card', status: 'paid', reference: 'NMTA-APP1008-R', cardLast4: '8821', createdAt: addDays(-90) + 'T08:00:00' },
+  { id: 'pay-6', userId: 'u-app-5', applicationId: 'APP-1004', type: 'exam', amount: 1500, method: 'card', status: 'paid', reference: 'NMTA-APP1004-E', cardLast4: '5510', createdAt: addDays(-3) + 'T16:40:00' },
+  { id: 'pay-7', userId: 'u-app-7', applicationId: 'APP-1006', type: 'trial', amount: 2000, method: 'card', status: 'paid', reference: 'NMTA-APP1006-T', cardLast4: '1103', createdAt: addDays(-2) + 'T10:11:00' },
+];
+
+export const notifications: AppNotification[] = [
+  { id: 'n1', userId: 'u-app-1', title: 'Medical cleared', message: 'Your medical examination for APP-1003 has been marked as passed. You may now book the written / computer test.', read: false, createdAt: addDays(-4) + 'T15:20:00', kind: 'success', link: '/app/exam' },
+  { id: 'n2', userId: 'u-app-1', title: 'One-Day Service active', message: 'Priority processing is enabled on APP-1003. Expect faster slot allocation at each stage.', read: true, createdAt: addDays(-18) + 'T09:14:00', kind: 'info' },
+  { id: 'n3', userId: 'u-app-1', title: 'Document verified', message: 'NIC copy and passport photograph for APP-1003 have been verified by the Registration Officer.', read: true, createdAt: addDays(-16) + 'T11:00:00', kind: 'success' },
+  { id: 'n4', userId: 'u-app-2', title: 'Application received', message: 'APP-1001 has been submitted. A License Registration Officer will review your documents shortly.', read: false, createdAt: addDays(-2) + 'T11:21:00', kind: 'info', link: '/app/applications/APP-1001' },
+  { id: 'n5', userId: 'u-app-3', title: 'Medical appointment tomorrow', message: 'Please attend NMTA Medical Centre — Colombo at 09:00 with your NIC and application slip.', read: false, createdAt: addDays(0) + 'T07:00:00', kind: 'warning', link: '/app/medical' },
+  { id: 'n6', userId: 'u-app-4', title: 'License issued', message: 'Your renewed licence B23-441902 is ready. Download the digital copy from your dashboard.', read: true, createdAt: addDays(-60) + 'T10:00:00', kind: 'success' },
+  { id: 'n7', userId: 'u-off-1', title: 'Priority queue', message: 'Two One-Day Service applications are awaiting document verification.', read: false, createdAt: addDays(-1) + 'T08:00:00', kind: 'warning' },
+];
+
+export const complaints: Complaint[] = [
+  {
+    id: 'cmp-1',
+    userId: 'u-app-2',
+    subject: 'Long wait after submission',
+    category: 'service',
+    message: 'I submitted APP-1001 two days ago and have not received any update on document verification.',
+    status: 'in_progress',
+    response: 'Your file is in the officer queue. Average turnaround is 3 working days.',
+    createdAt: addDays(-1) + 'T18:22:00',
+  },
+];
+
+export const trainingNotes: TrainingNote[] = [
+  {
+    id: 'tn-1',
+    trainerId: 'u-tra-1',
+    applicantId: 'u-app-6',
+    applicationId: 'APP-1005',
+    note: 'Completed 4 hours of yard manoeuvres. Reverse parking needs another session.',
+    progress: 55,
+    sessionDate: addDays(-3),
+    createdAt: addDays(-3) + 'T16:00:00',
+  },
+  {
+    id: 'tn-2',
+    trainerId: 'u-tra-1',
+    applicantId: 'u-app-7',
+    applicationId: 'APP-1006',
+    note: 'Ready for trial. Smooth clutch control and good observation.',
+    progress: 90,
+    sessionDate: addDays(-2),
+    createdAt: addDays(-2) + 'T17:10:00',
+  },
+];
+
+export const trainerSchedules: TrainerScheduleItem[] = [
+  { id: 'ts-1', trainerId: 'u-tra-1', date: T, startTime: '07:00', endTime: '09:00', applicantId: 'u-app-7', notes: 'Pre-trial warm-up' },
+  { id: 'ts-2', trainerId: 'u-tra-1', date: addDays(1), startTime: '08:00', endTime: '10:00', applicantId: 'u-app-6', notes: 'Highway merge practice' },
+  { id: 'ts-3', trainerId: 'u-tra-1', date: addDays(2), startTime: '14:00', endTime: '16:00' },
+];
+
+export const audit: AuditLog[] = [
+  { id: 'au-1', userId: 'u-off-1', userName: 'Priyantha Gunasekara', action: 'VERIFY_DOCUMENTS', entity: 'Application', entityId: 'APP-1003', details: 'Verified NIC and photograph', createdAt: addDays(-16) + 'T11:00:00' },
+  { id: 'au-2', userId: 'u-med-1', userName: 'Dr. Anoma Pathirana', action: 'MEDICAL_RESULT', entity: 'MedicalAppointment', entityId: 'med-2', details: 'Marked PASS for APP-1003', createdAt: addDays(-4) + 'T15:18:00' },
+  { id: 'au-3', userId: 'u-exa-1', userName: 'Lalith Senanayake', action: 'EXAM_RESULT', entity: 'ExamBooking', entityId: 'ex-2', details: 'Marked PASS (86) for APP-1005', createdAt: addDays(-5) + 'T11:40:00' },
+  { id: 'au-4', userId: 'u-off-1', userName: 'Priyantha Gunasekara', action: 'REJECT_APPLICATION', entity: 'Application', entityId: 'APP-1009', details: 'Illegible NIC copy', createdAt: addDays(-22) + 'T09:45:00' },
+  { id: 'au-5', userId: 'u-adm-1', userName: 'System Administrator', action: 'LOGIN', entity: 'User', entityId: 'u-adm-1', details: 'Administrator signed in', createdAt: addDays(-1) + 'T08:01:00' },
+];
+
+export function buildSeed(): AppState {
+  return {
+    users,
+    applications,
+    locations,
+    schedules,
+    medicals,
+    exams,
+    trials,
+    licenses,
+    payments,
+    notifications,
+    complaints,
+    trainingNotes,
+    trainerSchedules,
+    audit,
+    resetTokens: [],
+  };
+}

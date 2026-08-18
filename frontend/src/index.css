@@ -1,0 +1,249 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-sans: "Source Sans 3", "Segoe UI", sans-serif;
+  --color-ink: #0b1c33;
+  --color-ink-2: #16304f;
+  --color-gold: #c6a15b;
+  --color-gold-2: #e8d5a3;
+  --color-paper: #f6f1e7;
+  --color-paper-2: #efe6d6;
+  --color-teal: #0e7c7b;
+  --color-danger: #9f1239;
+  --color-ok: #0f766e;
+  --color-warn: #b45309;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: #f3eee4;
+  color: #0b1c33;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #c6a15b;
+  color: #0b1c33;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.paper-grid {
+  background-color: #f6f1e7;
+  background-image:
+    linear-gradient(rgba(11, 28, 51, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 28, 51, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.gold-rule {
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #c6a15b 15%, #e8d5a3 50%, #c6a15b 85%, transparent);
+}
+
+.seal-ring {
+  box-shadow:
+    0 0 0 2px #c6a15b,
+    0 0 0 6px #0b1c33,
+    0 0 0 8px #c6a15b;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #c6a15b88;
+  border-radius: 99px;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Auth pages — shared hero panel & glass card                        */
+/* ------------------------------------------------------------------ */
+
+.auth-split {
+  display: grid;
+  min-height: 100vh;
+}
+@media (min-width: 1024px) {
+  .auth-split {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.auth-hero {
+  position: relative;
+  display: none;
+  overflow: hidden;
+  background: #0b1c33;
+}
+@media (min-width: 1024px) {
+  .auth-hero {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+}
+.auth-hero img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.4;
+}
+.auth-hero-content {
+  position: relative;
+  padding: 3rem;
+  color: #f6f1e7;
+}
+
+.auth-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+}
+.auth-form-card {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.auth-glass {
+  border-radius: 1.5rem;
+  border: 1px solid rgba(11, 28, 51, 0.08);
+  background: white;
+  padding: 1.5rem;
+  box-shadow: 0 10px 40px -16px rgba(11, 28, 51, 0.12);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Animations                                                         */
+/* ------------------------------------------------------------------ */
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.3s ease-out;
+}
+
+.animate-dialog-in {
+  animation: dialog-in 0.2s ease-out;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.45s ease-out both;
+}
+
+.animate-spin {
+  animation: spinner-spin 0.7s linear infinite;
+}
+
+/* Stagger children utility */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+
+/* ------------------------------------------------------------------ */
+/*  Print / Receipt styles                                             */
+/* ------------------------------------------------------------------ */
+
+@media print {
+  .no-print,
+  nav,
+  aside,
+  header,
+  footer,
+  button:not(.print-keep) {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+  }
+  .print-receipt {
+    border: 2px solid #0b1c33;
+    padding: 24px;
+    margin: 0 auto;
+    max-width: 600px;
+  }
+  .print-receipt h2 {
+    border-bottom: 2px solid #c6a15b;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+  @page {
+    margin: 1.5cm;
+  }
+}
