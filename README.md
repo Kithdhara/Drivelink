@@ -1,8 +1,5 @@
 <div align="center">
-  <img src="./public/images/seal.png" alt="Sri Lanka National Emblem" width="120" />
   <h1>Web-Based Driving License Issuing Service</h1>
-  <p><strong>Department of Motor Traffic (DMT) · Digital First Initiative</strong></p>
-  
   <p>
     <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
     <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
