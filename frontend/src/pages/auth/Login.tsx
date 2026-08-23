@@ -1,0 +1,126 @@
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ROLE_HOME, ROLE_LABELS } from '../../types';
+import type { Role } from '../../types';
+import { useAuth } from '../../lib/auth';
+import { useStore } from '../../lib/store';
+import { DEMO_ACCOUNTS, DEMO_PASSWORD } from '../../lib/utils';
+import { Alert, Button, Field, Input } from '../../components/ui';
+import { loginUser } from '../../lib/api';
+
+export default function Login() {
+  const { login, enterSession, user } = useAuth();
+  const { resetDemo } = useStore();
+  const nav = useNavigate();
+  const location = useLocation();
+  const registeredSuccess = (location.state as any)?.registered === true;
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState(registeredSuccess ? 'Account created successfully! Please sign in with your credentials.' : '');
+  const [busy, setBusy] = useState(false);
+  const [pendingRole, setPendingRole] = useState<Role | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    nav(ROLE_HOME[user.role], { replace: true });
+  }, [user, nav]);
+
+  async function attempt(nextEmail: string, nextPassword: string) {
+    setError('');
+    setBusy(true);
+    setEmail(nextEmail);
+    setPassword(nextPassword);
+
+    // Try the real Java backend first
+    try {
+      const backendUser = await loginUser(nextEmail, nextPassword);
+      // Map backend response to the User type the app expects
+      const appUser = {
+        ...backendUser,
+        role: backendUser.role.toLowerCase() as Role,
+        password: '',
+      };
+      enterSession(appUser as any);
+      setPendingRole(appUser.role);
+      window.setTimeout(() => nav(ROLE_HOME[appUser.role], { replace: true }), 0);
+      return;
+    } catch (backendErr: unknown) {
+      const errMsg = backendErr instanceof Error ? backendErr.message : '';
+      // If backend returned a specific error (not a network error), show it
+      if (errMsg && !errMsg.includes('Failed to fetch') && !errMsg.includes('NetworkError')) {
+        setBusy(false);
+        setPendingRole(null);
+        setError(errMsg || 'No account found for that email or incorrect password.');
+        return;
+      }
+      // Network error — backend might be down, fall through to demo accounts
+    }
+
+    // Fallback: mock login (only for demo accounts when backend is unreachable)
+    const res = login(nextEmail, nextPassword);
+    if (!res.ok) {
+      setBusy(false);
+      setPendingRole(null);
+      setError(res.error);
+      return;
+    }
+    setPendingRole(res.user.role);
+    window.setTimeout(() => nav(ROLE_HOME[res.user.role], { replace: true }), 0);
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    attempt(email, password);
+  }
+
+  return (
+    <div className="auth-split">
+      <div className="auth-hero">
+        <img src="/images/auth-hero.jpg" alt="Driver on modern highway" />
+        <div className="auth-hero-content">
+          <p className="text-[11px] tracking-[0.28em] text-[#c6a15b] uppercase">Secure access</p>
+          <h2 className="mt-2 font-display text-5xl">Sign in to the licence service</h2>
+          <p className="mt-4 max-w-md text-white/70">
+            Citizens, registration officers, examiners, trainers, medical officers and administrators each land on a
+            dedicated workspace.
+          </p>
+        </div>
+      </div>
+      <div className="auth-form-side">
+        <div className="auth-form-card animate-slide-up">
+          <p className="text-[11px] font-semibold tracking-[0.22em] text-[#c6a15b] uppercase">NMTA portal</p>
+          <h2 className="mt-2 font-display text-3xl">Welcome back</h2>
+          <p className="mt-1 text-sm text-[#0b1c33]/60">Use a demo role or your registered credentials.</p>
+
+          <form onSubmit={submit} className="mt-8 space-y-4">
+            {successMsg && <Alert kind="success">{successMsg}</Alert>}
+            {error && <Alert kind="error">{error}</Alert>}
+            <Field label="Email" required>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </Field>
+            <Field label="Password" required>
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </Field>
+            <div className="flex justify-end">
+              <Link to="/forgot" className="text-xs font-semibold text-[#0e7c7b] hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+            <Button type="submit" className="w-full" size="lg" disabled={busy}>
+              {busy ? 'Signing in…' : 'Sign in'}
+            </Button>
+          </form>
+
+          <p className="mt-6 text-center text-sm text-[#0b1c33]/60">
+            New citizen?{' '}
+            <Link to="/register" className="font-semibold text-[#0e7c7b]">
+              Create an account
+            </Link>
+          </p>
+
+        </div>
+      </div>
+    </div>
+  );
+}
