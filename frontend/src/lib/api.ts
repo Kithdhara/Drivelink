@@ -69,12 +69,40 @@ export async function apiFetch<T>(
 
 /* ================================================================== */
 /*  Module: Authentication (shared)                                    */
-/*  TODO: Connect to POST /api/auth/login, POST /api/auth/register    */
 /* ================================================================== */
 
-// Currently handled by lib/auth.tsx and lib/store.tsx
-// When migrating: create login/register functions here that call
-// POST /api/auth/login and POST /api/auth/register, then store the JWT.
+/**
+ * Calls POST /api/auth/login on the Java Spring Boot backend.
+ * Returns the User object from SQL Server on success.
+ * Throws an error string on failure.
+ */
+export async function loginUser(email: string, password: string) {
+  return apiFetch<{
+    id: string; name: string; email: string; nic: string;
+    phone: string; role: string; active: boolean;
+    address?: string; dob?: string; gender?: string; createdAt: string;
+  }>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+/**
+ * Calls POST /api/auth/register on the Java Spring Boot backend.
+ * Saves the new user to SQL Server and returns the saved User object.
+ */
+export async function registerUser(data: {
+  name: string; nic: string; email: string;
+  phone: string; password: string; role: string;
+}) {
+  return apiFetch<{
+    id: string; name: string; email: string; nic: string;
+    phone: string; role: string; active: boolean; createdAt: string;
+  }>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
 
 /* ================================================================== */
 /*  Module: Medical Test Booking                                       */

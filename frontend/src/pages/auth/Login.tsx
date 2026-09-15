@@ -6,9 +6,10 @@ import { useAuth } from '../../lib/auth';
 import { useStore } from '../../lib/store';
 import { DEMO_ACCOUNTS, DEMO_PASSWORD } from '../../lib/utils';
 import { Alert, Button, Field, Input } from '../../components/ui';
+import { loginUser } from '../../lib/api';
 
 export default function Login() {
-  const { login, user } = useAuth();
+  const { login, enterSession, user } = useAuth();
   const { resetDemo } = useStore();
   const nav = useNavigate();
   const [email, setEmail] = useState('citizen@demo.gov');
@@ -22,11 +23,30 @@ export default function Login() {
     nav(ROLE_HOME[user.role], { replace: true });
   }, [user, nav]);
 
-  function attempt(nextEmail: string, nextPassword: string) {
+  async function attempt(nextEmail: string, nextPassword: string) {
     setError('');
     setBusy(true);
     setEmail(nextEmail);
     setPassword(nextPassword);
+
+    // Try the real Java backend first
+    try {
+      const backendUser = await loginUser(nextEmail, nextPassword);
+      // Map backend response to the User type the app expects
+      const appUser = {
+        ...backendUser,
+        role: backendUser.role.toLowerCase() as Role,
+        password: '',
+      };
+      enterSession(appUser as any);
+      setPendingRole(appUser.role);
+      window.setTimeout(() => nav(ROLE_HOME[appUser.role], { replace: true }), 0);
+      return;
+    } catch {
+      // Backend not available or login failed — fall back to mock store
+    }
+
+    // Fallback: mock login (for demo accounts)
     const res = login(nextEmail, nextPassword);
     if (!res.ok) {
       setBusy(false);
