@@ -107,14 +107,67 @@ export async function registerUser(data: {
 /* ================================================================== */
 /*  Module: Medical Test Booking                                       */
 /*  Owner: Weerasinghe W.P.D.V (IT25100817)                           */
-/*  TODO: Connect to /api/medical/*                                    */
 /* ================================================================== */
 
+import type { MedicalAppointment } from '../types';
+
 // POST /api/medical/book
-// GET  /api/medical/appointments
-// PUT  /api/medical/:id/reschedule
-// PUT  /api/medical/:id/cancel
-// PUT  /api/medical/:id/result
+export async function bookMedical(data: {
+  applicationId: string;
+  applicantId: string;
+  scheduleId: string;
+  locationId: string;
+  date: string;
+  time: string;
+}) {
+  return apiFetch<MedicalAppointment>('/medical/book', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// GET /api/medical/appointments  (all appointments, e.g. for clinic/dashboard views)
+// GET /api/medical/appointments?applicantId=...  (one applicant's own bookings)
+export async function getMedicalAppointments(applicantId?: string) {
+  const query = applicantId ? `?applicantId=${applicantId}` : '';
+  return apiFetch<MedicalAppointment[]>(`/medical/appointments${query}`);
+}
+
+// PUT /api/medical/:id/reschedule
+export async function rescheduleMedical(
+  id: string,
+  data: { scheduleId: string; locationId: string; date: string; time: string },
+) {
+  return apiFetch<MedicalAppointment>(`/medical/${id}/reschedule`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+// PUT /api/medical/:id/cancel
+export async function cancelMedical(id: string) {
+  return apiFetch<MedicalAppointment>(`/medical/${id}/cancel`, {
+    method: 'PUT',
+  });
+}
+
+// PUT /api/medical/:id/result
+export async function recordMedicalResult(
+  id: string,
+  data: {
+    officerId: string;
+    result: 'pass' | 'fail';
+    remarks?: string;
+    vision?: string;
+    hearing?: string;
+    bloodPressure?: string;
+  },
+) {
+  return apiFetch<MedicalAppointment>(`/medical/${id}/result`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
 
 /* ================================================================== */
 /*  Module: License Application & Document Uploading                   */

@@ -1,14 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../lib/auth';
 import { locById, useStore } from '../../lib/store';
 import { canReschedule, formatDate } from '../../lib/utils';
 import { Alert, Badge, Button, Card, PageHeader, Select } from '../../components/ui';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { useToast } from '../../components/Toast';
+import { bookMedical, cancelMedical, rescheduleMedical, getMedicalAppointments } from '../../lib/api';
+import type { MedicalAppointment } from '../../types';
 
 export default function BookMedical() {
   const { user } = useAuth();
-  const { state, bookMedical, cancelMedical, rescheduleMedical, pay } = useStore();
+  // NOTE: schedules/locations still come from the mock store - Locations &
+  // Schedules aren't part of the Medical Test Booking module. `pay` is also
+  // still mocked since Payments belongs to the "Shared" section in api.ts.
+  const { state, pay } = useStore();
   const toast = useToast();
   const [appId, setAppId] = useState('');
   const [city, setCity] = useState('all');
@@ -16,6 +21,24 @@ export default function BookMedical() {
   const [err, setErr] = useState('');
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState<string | null>(null);
+  const [bookings, setBookings] = useState<MedicalAppointment[]>([]);
+
+  const me = user;
+
+  async function refresh() {
+    if (!me) return;
+    try {
+      const data = await getMedicalAppointments(me.id);
+      setBookings(data);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not load your appointments.');
+    }
+  }
+
+  useEffect(() => {
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.id]);
 
   const slots = useMemo(() => {
     return state.schedules
@@ -28,29 +51,58 @@ export default function BookMedical() {
   }, [state.schedules, state.locations, city]);
 
   if (!user) return null;
-  const me = user;
   const apps = state.applications.filter(
     (a) =>
-      a.applicantId === me.id &&
+      a.applicantId === me!.id &&
       ['submitted', 'documents_verified', 'medical_pending', 'medical_failed'].includes(a.status),
   );
   const activeApp = apps.find((a) => a.id === appId) ?? apps[0];
-  const bookings = state.medicals.filter((m) => m.applicantId === me.id);
   const cities = [...new Set(state.locations.filter((l) => l.type === 'medical').map((l) => l.city))];
 
-  function book(scheduleId: string) {
+  async function book(scheduleId: string) {
     if (!activeApp) return setErr('No eligible application. Submit a file first.');
-    const res = rescheduleId
-      ? rescheduleMedical(rescheduleId, scheduleId)
-      : bookMedical({ applicationId: activeApp.id, applicantId: me.id, scheduleId });
-    if (!res.ok) return setErr(res.error);
-    if (!rescheduleId) {
-      pay({ userId: me.id, applicationId: activeApp.id, type: 'medical', method: 'card', cardLast4: '4242' });
+    const sch = state.schedules.find((s) => s.id === scheduleId);
+    if (!sch) return setErr('Slot not found.');
+
+    try {
+      if (rescheduleId) {
+        await rescheduleMedical(rescheduleId, {
+          scheduleId: sch.id,
+          locationId: sch.locationId,
+          date: sch.date,
+          time: sch.startTime,
+        });
+        toast.success('Appointment moved successfully.');
+        setMsg('Appointment moved.');
+      } else {
+        await bookMedical({
+          applicationId: activeApp.id,
+          applicantId: me!.id,
+          scheduleId: sch.id,
+          locationId: sch.locationId,
+          date: sch.date,
+          time: sch.startTime,
+        });
+        pay({ userId: me!.id, applicationId: activeApp.id, type: 'medical', method: 'card', cardLast4: '4242' });
+        toast.success('Medical appointment booked.');
+        setMsg('Medical appointment booked. Fee receipt is in Payments.');
+      }
+      setErr('');
+      setRescheduleId(null);
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Something went wrong.');
     }
-    toast.success(rescheduleId ? 'Appointment moved successfully.' : 'Medical appointment booked.');
-    setMsg(rescheduleId ? 'Appointment moved.' : 'Medical appointment booked. Fee receipt is in Payments.');
-    setErr('');
-    setRescheduleId(null);
+  }
+
+  async function doCancel(id: string) {
+    try {
+      await cancelMedical(id);
+      toast.success('Medical appointment cancelled.');
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not cancel appointment.');
+    }
   }
 
   return (
@@ -170,8 +222,7 @@ export default function BookMedical() {
         variant="danger"
         onConfirm={() => {
           if (confirmCancel) {
-            cancelMedical(confirmCancel);
-            toast.success('Medical appointment cancelled.');
+            doCancel(confirmCancel);
           }
           setConfirmCancel(null);
         }}

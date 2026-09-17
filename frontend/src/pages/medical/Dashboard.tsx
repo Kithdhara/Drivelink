@@ -1,16 +1,27 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { HeartPulse, ShieldAlert } from 'lucide-react';
 import { useStore } from '../../lib/store';
 import { todayISO } from '../../lib/utils';
 import { Button, Card, PageHeader, StatCard } from '../../components/ui';
+import { getMedicalAppointments } from '../../lib/api';
+import type { MedicalAppointment } from '../../types';
 
 export default function MedicalDashboard() {
-  const { state } = useStore();
+  const { state } = useStore(); // state.users still comes from the mock store
+  const [medicals, setMedicals] = useState<MedicalAppointment[]>([]);
+
+  useEffect(() => {
+    getMedicalAppointments()
+      .then(setMedicals)
+      .catch(() => setMedicals([]));
+  }, []);
+
   const today = todayISO();
-  const todays = state.medicals.filter((m) => m.date === today);
+  const todays = medicals.filter((m) => m.date === today);
   const pending = todays.filter((m) => m.status === 'booked');
-  const failed = state.medicals.filter((m) => m.result === 'fail').length;
-  const passed = state.medicals.filter((m) => m.result === 'pass').length;
+  const failed = medicals.filter((m) => m.result === 'fail').length;
+  const passed = medicals.filter((m) => m.result === 'pass').length;
 
   return (
     <div>
