@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Web-Based Driving License Issuing Service.iml" filepath="$PROJECT_DIR$/.idea/Web-Based Driving License Issuing Service.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Drivelink.iml" filepath="$PROJECT_DIR$/.idea/Drivelink.iml" />
     </modules>
   </component>
 </project>

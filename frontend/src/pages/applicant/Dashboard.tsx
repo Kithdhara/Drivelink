@@ -6,19 +6,17 @@ import {
   Bell,
   Download,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../lib/auth';
 import { useStore } from '../../lib/store';
 import { formatDate, formatMoney } from '../../lib/utils';
-import { LICENSE_CATEGORIES } from '../../types';
+import { getApplicationsByApplicantAPI, type BackendApplication } from '../../lib/api';
 import {
-  Badge,
   Button,
   Card,
   Empty,
   PageHeader,
   StatCard,
-  StatusBadge,
-  Timeline,
 } from '../../components/ui';
 
 export default function ApplicantDashboard() {
@@ -26,9 +24,15 @@ export default function ApplicantDashboard() {
   const { state } = useStore();
   if (!user) return null;
 
-  const apps = state.applications.filter((a) => a.applicantId === user.id);
+  // Real applications from backend
+  const [apps, setApps] = useState<BackendApplication[]>([]);
+  useEffect(() => {
+    getApplicationsByApplicantAPI(user.id)
+      .then(setApps)
+      .catch(() => {});
+  }, [user.id]);
+
   const latest = apps[0];
-  const unpaidHint = apps.some((a) => a.status === 'submitted' || a.status === 'medical_passed');
   const upcoming = [
     ...state.medicals.filter((m) => m.applicantId === user.id && m.status === 'booked'),
     ...state.exams.filter((m) => m.applicantId === user.id && m.status === 'booked'),
@@ -76,39 +80,21 @@ export default function ApplicantDashboard() {
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold tracking-[0.18em] text-[#c6a15b] uppercase">Current file</p>
-              <h2 className="font-display text-2xl">
-                {latest.id} · Class {latest.category}
-              </h2>
+              <h2 className="font-display text-2xl">#{latest.id} · {latest.licenseClasses}</h2>
               <p className="text-sm text-[#0b1c33]/60">
-                {LICENSE_CATEGORIES.find((c) => c.id === latest.category)?.name} · {latest.type === 'renewal' ? 'Renewal' : 'New issue'} ·
-                updated {formatDate(latest.updatedAt)}
+                Submitted {formatDate(latest.submittedAt)} · updated {formatDate(latest.updatedAt)}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              {latest.oneDayService && <Badge tone="gold">One-Day Service</Badge>}
-              <StatusBadge status={latest.status} />
-            </div>
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+              latest.status === 'approved' ? 'bg-green-100 text-green-800' :
+              latest.status === 'rejected' ? 'bg-red-100 text-red-800' :
+              'bg-yellow-100 text-yellow-800'
+            }`}>{latest.status}</span>
           </div>
-          <Timeline status={latest.status} />
           <div className="mt-5 flex flex-wrap gap-2">
             <Link to={`/app/applications/${latest.id}`}>
               <Button>Open tracker</Button>
             </Link>
-            {latest.status === 'medical_passed' && (
-              <Link to="/app/exam">
-                <Button variant="gold">Book exam</Button>
-              </Link>
-            )}
-            {(latest.status === 'submitted' || latest.status === 'documents_verified') && (
-              <Link to="/app/medical">
-                <Button variant="gold">Book medical</Button>
-              </Link>
-            )}
-            {latest.status === 'exam_passed' && (
-              <Link to="/app/trial">
-                <Button variant="gold">Book trial</Button>
-              </Link>
-            )}
           </div>
         </Card>
       ) : (
@@ -170,29 +156,28 @@ export default function ApplicantDashboard() {
       <Card className="mt-6">
         <h3 className="font-display text-xl">All applications</h3>
         {apps.length === 0 ? (
-          <p className="mt-2 text-sm text-[#0b1c33]/55">—</p>
+          <p className="mt-2 text-sm text-[#0b1c33]/55">No applications yet.</p>
         ) : (
           <div className="mt-3 divide-y divide-[#0b1c33]/8">
             {apps.map((a) => (
               <Link key={a.id} to={`/app/applications/${a.id}`} className="flex items-center justify-between py-3 hover:bg-[#f6f1e7]/60">
                 <div>
                   <p className="font-semibold">
-                    {a.id} · Class {a.category}
+                    #{a.id} · {a.licenseClasses}
                   </p>
                   <p className="text-xs text-[#0b1c33]/55">
-                    {a.type} · {formatDate(a.createdAt)}
+                    Submitted {formatDate(a.submittedAt)}
                     {a.oneDayService ? ' · One-Day' : ''}
                   </p>
                 </div>
-                <StatusBadge status={a.status} />
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize ${
+                  a.status === 'approved' ? 'bg-green-100 text-green-800' :
+                  a.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>{a.status}</span>
               </Link>
             ))}
           </div>
-        )}
-        {unpaidHint && (
-          <p className="mt-3 text-xs text-[#0b1c33]/50">
-            Application and test fees can be settled from the Payments desk at any time.
-          </p>
         )}
       </Card>
     </div>

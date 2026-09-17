@@ -119,14 +119,182 @@ export async function registerUser(data: {
 /* ================================================================== */
 /*  Module: License Application & Document Uploading                   */
 /*  Owner: Simra M.A.F (IT25100815)                                    */
-/*  TODO: Connect to /api/applications/*                               */
+/*  Connected to /api/applications/*                                   */
 /* ================================================================== */
 
-// POST   /api/applications
-// GET    /api/applications/:id
-// PUT    /api/applications/:id
-// POST   /api/applications/:id/documents
-// DELETE /api/applications/:id/documents/:docId
+/** Shape of a LicenseApplication returned by the Spring Boot backend */
+export interface BackendApplication {
+  id: number;
+  applicantId: string;
+  applicantName: string;
+  licenseClasses: string;
+  oneDayService: boolean;
+  fullName: string;
+  nic: string;
+  dateOfBirth: string;
+  gender: string;
+  address: string;
+  phone: string;
+  email: string;
+  bloodGroup: string;
+  emergencyContact: string | null;
+  nicCopyPath: string;
+  passportPhotoPath: string;
+  medicalReportPath: string;
+  status: string;
+  rejectionReason: string | null;
+  officerNotes: string | null;
+  submittedAt: string;
+  updatedAt: string;
+}
+
+/**
+ * POST /api/applications  (multipart/form-data)
+ * Submits a new licence application with uploaded documents.
+ */
+export async function createApplicationAPI(data: {
+  licenseClasses: string;
+  oneDayService: boolean;
+  fullName: string;
+  nic: string;
+  dateOfBirth: string;
+  gender: string;
+  address: string;
+  phone: string;
+  email: string;
+  bloodGroup: string;
+  emergencyContact?: string;
+  applicantId: string;
+  applicantName: string;
+  nicCopy: File;
+  passportPhoto: File;
+  medicalReport?: File;
+}): Promise<BackendApplication> {
+  const form = new FormData();
+  form.append('licenseClasses', data.licenseClasses);
+  form.append('oneDayService', String(data.oneDayService));
+  form.append('fullName', data.fullName);
+  form.append('nic', data.nic);
+  form.append('dateOfBirth', data.dateOfBirth);
+  form.append('gender', data.gender);
+  form.append('address', data.address);
+  form.append('phone', data.phone);
+  form.append('email', data.email);
+  form.append('bloodGroup', data.bloodGroup || '');
+  if (data.emergencyContact) form.append('emergencyContact', data.emergencyContact);
+  form.append('applicantId', data.applicantId);
+  form.append('applicantName', data.applicantName);
+  form.append('nicCopy', data.nicCopy);
+  form.append('passportPhoto', data.passportPhoto);
+  if (data.medicalReport) form.append('medicalReport', data.medicalReport);
+
+  const token = getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/applications`, {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => 'Unknown error');
+    throw new Error(errorText || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/** GET /api/applications/:id — fetch one application by numeric ID */
+export async function getApplicationByIdAPI(id: number): Promise<BackendApplication> {
+  return apiFetch<BackendApplication>(`/applications/${id}`);
+}
+
+/** GET /api/applications/applicant/:applicantId — all applications for a user */
+export async function getApplicationsByApplicantAPI(applicantId: string): Promise<BackendApplication[]> {
+  return apiFetch<BackendApplication[]>(`/applications/applicant/${applicantId}`);
+}
+
+/** GET /api/applications/status/:status — all applications filtered by status */
+export async function getApplicationsByStatusAPI(status: string): Promise<BackendApplication[]> {
+  return apiFetch<BackendApplication[]>(`/applications/status/${status}`);
+}
+
+/** PUT /api/applications/:id — officer updates status + notes + rejection reason */
+export async function updateApplicationStatusAPI(
+  id: number,
+  status: string,
+  officerNotes?: string,
+  rejectionReason?: string,
+): Promise<BackendApplication> {
+  return apiFetch<BackendApplication>(`/applications/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status, officerNotes: officerNotes ?? '', rejectionReason: rejectionReason ?? '' }),
+  });
+}
+
+/** GET /api/applications/all — officer fetches every application in the system */
+export async function getAllApplicationsAPI(): Promise<BackendApplication[]> {
+  return apiFetch<BackendApplication[]>('/applications/all');
+}
+
+/**
+ * PUT /api/applications/:id/edit  (multipart/form-data)
+ * Applicant edits personal details or replaces documents within 12 hours.
+ * Throws 403 error if 12-hour window has passed.
+ */
+export async function editApplicationAPI(
+  id: number,
+  data: {
+    fullName?: string;
+    nic?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+    bloodGroup?: string;
+    emergencyContact?: string;
+    nicCopy?: File;
+    passportPhoto?: File;
+    medicalReport?: File;
+  },
+): Promise<BackendApplication> {
+  const form = new FormData();
+  if (data.fullName)        form.append('fullName', data.fullName);
+  if (data.nic)             form.append('nic', data.nic);
+  if (data.dateOfBirth)     form.append('dateOfBirth', data.dateOfBirth);
+  if (data.gender)          form.append('gender', data.gender);
+  if (data.address)         form.append('address', data.address);
+  if (data.phone)           form.append('phone', data.phone);
+  if (data.email)           form.append('email', data.email);
+  if (data.bloodGroup)      form.append('bloodGroup', data.bloodGroup);
+  if (data.emergencyContact) form.append('emergencyContact', data.emergencyContact);
+  if (data.nicCopy)         form.append('nicCopy', data.nicCopy);
+  if (data.passportPhoto)   form.append('passportPhoto', data.passportPhoto);
+  if (data.medicalReport)   form.append('medicalReport', data.medicalReport);
+
+  const token = getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}/applications/${id}/edit`, {
+    method: 'PUT',
+    headers,
+    body: form,
+  });
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => 'Unknown error');
+    throw new Error(errorText || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/** Build a browser URL to preview an uploaded document */
+export function getDocumentUrl(filePath: string): string {
+  // filePath = "uploads/applications/nic_xxx.jpg"
+  const filename = filePath.split('/').pop();
+  return `${API_BASE}/applications/files/${filename}`;
+}
 
 /* ================================================================== */
 /*  Module: Driving Exam Booking                                       */

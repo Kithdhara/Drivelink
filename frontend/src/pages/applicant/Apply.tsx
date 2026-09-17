@@ -1,20 +1,62 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
 import { useStore } from '../../lib/store';
 import { FEES, LICENSE_CATEGORIES } from '../../types';
 import type { DocumentFile, LicenseCategory, PersonalDetails } from '../../types';
-import { fileToDataUrl, formatMoney, validateEmail, validateNIC, validatePhone, validateUpload } from '../../lib/utils';
-import { Alert, Button, Card, Field, Input, PageHeader, Select, Spinner, scrollToFirstError } from '../../components/ui';
+import {
+  fileToDataUrl,
+  formatMoney,
+  validateEmail,
+  validateNIC,
+  validatePhone,
+  validateUpload,
+} from '../../lib/utils';
+import {
+  Alert,
+  Button,
+  Card,
+  Field,
+  Input,
+  PageHeader,
+  Select,
+  Spinner,
+  scrollToFirstError,
+} from '../../components/ui';
+import { createApplicationAPI, getApplicationsByApplicantAPI } from '../../lib/api';
 
 const STEPS = ['Category', 'Personal', 'Documents', 'Review'];
+const MAX_CATEGORIES = 3;
+
+function validatePhone10(v: string) {
+  if (!v) return 'Required';
+  if (!/^\d{10}$/.test(v.trim())) return 'Must be exactly 10 digits';
+  return '';
+}
 
 export default function Apply() {
   const { user } = useAuth();
-  const { createApplication, pay, notify } = useStore();
+  const { pay, notify } = useStore();
   const nav = useNavigate();
+
+  /* ── Block check: has active (non-rejected) application? ── */
+  const [checking, setChecking] = useState(true);
+  const [blocked, setBlocked] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    getApplicationsByApplicantAPI(user.id)
+      .then((apps) => {
+        const hasActive = apps.some((a) => a.status !== 'rejected' && a.status !== 'license_issued');
+        setBlocked(hasActive);
+      })
+      .catch(() => {})
+      .finally(() => setChecking(false));
+  }, [user]);
+
+  /* ── form state ── */
   const [step, setStep] = useState(0);
-  const [category, setCategory] = useState<LicenseCategory>('B');
+  const [categories, setCategories] = useState<LicenseCategory[]>(['B']);
   const [oneDay, setOneDay] = useState(false);
   const [personal, setPersonal] = useState<PersonalDetails>({
     fullName: user?.name ?? '',
@@ -31,26 +73,56 @@ export default function Apply() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [uploadErr, setUploadErr] = useState('');
+  const [submitErr, setSubmitErr] = useState('');
+  // Preserve actual File objects for upload
+  const fileRefs = useRef<Record<string, File>>({});
 
-  const eligibleOneDay = useMemo(() => ['A', 'A1', 'B', 'B1'].includes(category), [category]);
+  /* ── Category helpers ── */
+  const eligibleOneDay = useMemo(
+    () => categories.some((c) => ['A', 'A1', 'B', 'B1'].includes(c)),
+    [categories],
+  );
 
+  function toggleCategory(id: LicenseCategory) {
+    setCategories((prev) => {
+      if (prev.includes(id)) return prev.filter((c) => c !== id);
+      if (prev.length >= MAX_CATEGORIES) return prev; // max 3
+      return [...prev, id];
+    });
+  }
+
+  /* ── Fee calculation ── */
+  const appFee = FEES.application * categories.length;
+  const oneDayFee = eligibleOneDay && oneDay ? FEES.one_day : 0;
+  const totalFee = appFee + oneDayFee;
+
+  /* ── File handler ── */
   async function onFile(type: DocumentFile['type'], file?: File) {
     setUploadErr('');
     if (!file) return;
     const v = validateUpload(file);
-    if (v) {
-      setUploadErr(v);
-      return;
-    }
+    if (v) { setUploadErr(v); return; }
     const dataUrl = await fileToDataUrl(file);
+    fileRefs.current[type] = file;
     setDocs((d) => [
       ...d.filter((x) => x.type !== type),
       { type, name: file.name, dataUrl, mimeType: file.type, size: file.size },
     ]);
   }
 
+  function removeFile(type: DocumentFile['type']) {
+    setDocs((d) => d.filter((x) => x.type !== type));
+    delete fileRefs.current[type];
+  }
+
+  /* ── Step validation ── */
   function next() {
     const e: Record<string, string> = {};
+
+    if (step === 0) {
+      if (categories.length === 0) e.category = 'Select at least one licence class.';
+    }
+
     if (step === 1) {
       if (personal.fullName.trim().length < 3) e.fullName = 'Required';
       const n = validateNIC(personal.nic);
@@ -62,58 +134,115 @@ export default function Apply() {
       if (ph) e.phone = ph;
       const em = validateEmail(personal.email);
       if (em) e.email = em;
+      if (!personal.bloodGroup) e.bloodGroup = 'Blood group is required';
+      if (personal.emergencyContact) {
+        const ecErr = validatePhone10(personal.emergencyContact);
+        if (ecErr && ecErr !== 'Required') e.emergencyContact = ecErr;
+      }
     }
+
     if (step === 2) {
       if (!docs.some((d) => d.type === 'nic')) e.docs = 'Upload a NIC copy.';
       if (!docs.some((d) => d.type === 'photo')) e.docs = 'Upload a passport photograph.';
     }
+
     setErrors(e);
-    if (Object.keys(e).length) {
-      scrollToFirstError();
-      return;
-    }
+    if (Object.keys(e).length) { scrollToFirstError(); return; }
     setStep((s) => Math.min(3, s + 1));
   }
 
-  function submit() {
+  /* ── Submit ── */
+  async function submit() {
     if (!user) return;
-    setBusy(true);
-    const app = createApplication({
-      applicantId: user.id,
-      type: 'new',
-      category,
-      oneDayService: eligibleOneDay && oneDay,
-      personal,
-      documents: docs.map((d, i) => ({
-        ...d,
-        id: `tmp-${i}`,
-        applicationId: 'pending',
-        uploadedAt: new Date().toISOString(),
-      })),
-    });
-    pay({ userId: user.id, applicationId: app.id, type: 'application', method: 'card', cardLast4: '4242' });
-    if (eligibleOneDay && oneDay) {
-      pay({ userId: user.id, applicationId: app.id, type: 'one_day', method: 'card', cardLast4: '4242' });
+    setSubmitErr('');
+
+    const nicFile = fileRefs.current['nic'];
+    const photoFile = fileRefs.current['photo'];
+    const medicalFile = fileRefs.current['medical'];
+
+    if (!nicFile || !photoFile) {
+      setSubmitErr('NIC copy and passport photograph are required.');
+      return;
     }
-    notify({
-      userId: user.id,
-      title: 'Application submitted',
-      message: `${app.id} is with the Registration Officer for document review.`,
-      kind: 'success',
-      link: `/app/applications/${app.id}`,
-    });
-    nav(`/app/applications/${app.id}`);
+
+    setBusy(true);
+    try {
+      const saved = await createApplicationAPI({
+        licenseClasses: categories.join(','),
+        oneDayService: eligibleOneDay && oneDay,
+        fullName: personal.fullName,
+        nic: personal.nic,
+        dateOfBirth: personal.dob,
+        gender: personal.gender,
+        address: personal.address,
+        phone: personal.phone,
+        email: personal.email,
+        bloodGroup: personal.bloodGroup ?? '',
+        emergencyContact: personal.emergencyContact,
+        applicantId: user.id,
+        applicantName: user.name,
+        nicCopy: nicFile,
+        passportPhoto: photoFile,
+        medicalReport: medicalFile,
+      });
+
+      notify({
+        userId: user.id,
+        title: 'Application submitted',
+        message: `Application #${saved.id} is with the Registration Officer for document review.`,
+        kind: 'success',
+        link: `/app/applications/${saved.id}`,
+      });
+      nav(`/app/applications/${saved.id}`);
+    } catch (err: unknown) {
+      setSubmitErr(err instanceof Error ? err.message : 'Submission failed. Please try again.');
+      setBusy(false);
+    }
+  }
+
+  /* ── Guard: loading or blocked ── */
+  if (checking) return <div className="flex items-center justify-center py-20"><Spinner /></div>;
+
+  if (blocked) {
+    return (
+      <div>
+        <PageHeader kicker="New issue" title="Licence application" subtitle="" />
+        <Card>
+          <Alert kind="warning" title="Active application on file">
+            You already have an active licence application. You may not submit another application
+            until your current one is <strong>approved</strong> or <strong>rejected</strong>.
+            <br />
+            <button
+              className="mt-3 text-sm font-semibold text-[#0e7c7b] underline"
+              onClick={() => nav('/app')}
+            >
+              Go to Dashboard →
+            </button>
+          </Alert>
+        </Card>
+      </div>
+    );
   }
 
   return (
     <div>
-      <PageHeader kicker="New issue" title="Licence application" subtitle="Complete all four steps. Application fee is collected on submit." />
+      <PageHeader
+        kicker="New issue"
+        title="Licence application"
+        subtitle="Complete all four steps. Application fee is collected after approval."
+      />
+
+      {/* Step indicators */}
       <div className="mb-6 grid grid-cols-4 gap-2">
         {STEPS.map((s, i) => (
           <div
             key={s}
             className={`rounded-xl px-3 py-2 text-center text-xs font-semibold ${
-              i === step ? 'bg-[#0b1c33] text-[#f6f1e7]' : i < step ? 'bg-[#c6a15b] text-[#0b1c33]' : 'bg-white text-[#0b1c33]/50'
+              i === step
+                ? 'bg-[#0b1c33] text-[#f6f1e7]'
+                : i < step
+                ? 'bg-[#c6a15b] text-[#0b1c33]'
+                : 'bg-white text-[#0b1c33]/50'
             }`}
           >
             {i + 1}. {s}
@@ -121,25 +250,53 @@ export default function Apply() {
         ))}
       </div>
 
+      {/* ── Step 0: Category ── */}
       {step === 0 && (
         <Card>
-          <h2 className="font-display text-2xl">Select a licence class</h2>
+          <h2 className="font-display text-2xl">Select licence class(es)</h2>
+          <p className="mt-1 text-sm text-[#0b1c33]/60">
+            Choose up to <strong>3</strong> classes. Fee: LKR 2,500 per class.
+            Currently selected: <strong>{categories.join(', ') || 'none'}</strong>.
+          </p>
+          {errors.category && (
+            <div className="mt-3">
+              <Alert kind="error">{errors.category}</Alert>
+            </div>
+          )}
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {LICENSE_CATEGORIES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setCategory(c.id)}
-                className={`rounded-2xl border p-4 text-left ${
-                  category === c.id ? 'border-[#c6a15b] bg-[#c6a15b]/12 ring-2 ring-[#c6a15b]' : 'border-[#0b1c33]/10 bg-white'
-                }`}
-              >
-                <p className="font-display text-3xl text-[#c6a15b]">{c.id}</p>
-                <p className="font-semibold">{c.name}</p>
-                <p className="text-xs text-[#0b1c33]/55">{c.desc}</p>
-              </button>
-            ))}
+            {LICENSE_CATEGORIES.map((c) => {
+              const selected = categories.includes(c.id);
+              const maxed = categories.length >= MAX_CATEGORIES && !selected;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  disabled={maxed}
+                  onClick={() => toggleCategory(c.id)}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    selected
+                      ? 'border-[#c6a15b] bg-[#c6a15b]/12 ring-2 ring-[#c6a15b]'
+                      : maxed
+                      ? 'cursor-not-allowed border-[#0b1c33]/10 bg-white opacity-40'
+                      : 'border-[#0b1c33]/10 bg-white hover:border-[#c6a15b]/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <p className="font-display text-3xl text-[#c6a15b]">{c.id}</p>
+                    {selected && (
+                      <span className="mt-1 rounded-full bg-[#c6a15b] px-2 py-0.5 text-[10px] font-bold text-white">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 font-semibold">{c.name}</p>
+                  <p className="text-xs text-[#0b1c33]/55">{c.desc}</p>
+                </button>
+              );
+            })}
           </div>
+
+          {/* One-Day service */}
           <label className="mt-6 flex items-start gap-3 rounded-xl bg-[#f6f1e7] p-4 text-sm">
             <input
               type="checkbox"
@@ -149,14 +306,27 @@ export default function Apply() {
               className="mt-1"
             />
             <span>
-              <strong>Request One-Day Service</strong> — priority processing for {formatMoney(FEES.one_day)}. Available
-              for classes A, A1, B and B1 when slots exist.
-              {!eligibleOneDay && <span className="block text-[#9f1239]">Not eligible for this class.</span>}
+              <strong>Request One-Day Service</strong> — priority processing for{' '}
+              {formatMoney(FEES.one_day)}. Available for classes A, A1, B and B1.
+              {!eligibleOneDay && (
+                <span className="block text-[#9f1239]">Not eligible for your selected class(es).</span>
+              )}
             </span>
           </label>
+
+          {/* Fee summary */}
+          <div className="mt-4 rounded-xl bg-[#0b1c33] p-4 text-[#f6f1e7]">
+            <p className="text-xs tracking-widest text-[#c6a15b] uppercase">Estimated fee</p>
+            <p className="font-display text-2xl">{formatMoney(appFee + oneDayFee)}</p>
+            <p className="text-xs text-white/60">
+              {categories.length} × {formatMoney(FEES.application)} application
+              {eligibleOneDay && oneDay ? ` + ${formatMoney(FEES.one_day)} one-day` : ''}
+            </p>
+          </div>
         </Card>
       )}
 
+      {/* ── Step 1: Personal ── */}
       {step === 1 && (
         <Card>
           <h2 className="font-display text-2xl">Personal particulars</h2>
@@ -187,78 +357,96 @@ export default function Apply() {
             <Field label="Email" required error={errors.email}>
               <Input value={personal.email} onChange={(e) => setPersonal({ ...personal, email: e.target.value })} />
             </Field>
-            <Field label="Blood group">
+            <Field label="Blood group" required error={errors.bloodGroup}>
               <Select value={personal.bloodGroup} onChange={(e) => setPersonal({ ...personal, bloodGroup: e.target.value })}>
-                <option value="">Unknown</option>
+                <option value="">Select blood group</option>
                 {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((g) => (
                   <option key={g}>{g}</option>
                 ))}
               </Select>
             </Field>
-            <Field label="Emergency contact">
+            <Field label="Emergency contact (10-digit number)" error={errors.emergencyContact}>
               <Input
                 value={personal.emergencyContact}
-                onChange={(e) => setPersonal({ ...personal, emergencyContact: e.target.value })}
+                maxLength={10}
+                placeholder="0771234567"
+                onChange={(e) => setPersonal({ ...personal, emergencyContact: e.target.value.replace(/\D/g, '') })}
               />
             </Field>
           </div>
         </Card>
       )}
 
+      {/* ── Step 2: Documents ── */}
       {step === 2 && (
         <Card>
           <h2 className="font-display text-2xl">Supporting documents</h2>
-          <p className="mt-1 text-sm text-[#0b1c33]/60">JPG, PNG, WEBP or PDF · max 2 MB each.</p>
-          {uploadErr && (
-            <div className="mt-3">
-              <Alert kind="error">{uploadErr}</Alert>
-            </div>
-          )}
-          {errors.docs && (
-            <div className="mt-3">
-              <Alert kind="error">{errors.docs}</Alert>
-            </div>
-          )}
+          <p className="mt-1 text-sm text-[#0b1c33]/60">JPG, PNG, WEBP or PDF · max 20 MB each.</p>
+          {uploadErr && <div className="mt-3"><Alert kind="error">{uploadErr}</Alert></div>}
+          {errors.docs && <div className="mt-3"><Alert kind="error">{errors.docs}</Alert></div>}
           <div className="mt-4 grid gap-4 md:grid-cols-3">
-            {([
-              ['nic', 'NIC copy'],
-              ['photo', 'Passport photograph'],
-              ['medical', 'Existing medical report (optional)'],
-            ] as const).map(([type, label]) => {
+            {(
+              [
+                ['nic', 'NIC copy', true],
+                ['photo', 'Passport photograph', true],
+                ['medical', 'Existing medical report (optional)', false],
+              ] as const
+            ).map(([type, label, required]) => {
               const f = docs.find((d) => d.type === type);
               return (
-                <label key={type} className="cursor-pointer rounded-2xl border border-dashed border-[#0b1c33]/20 bg-[#f6f1e7] p-4">
-                  <p className="text-xs font-semibold tracking-wide uppercase">{label}</p>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    className="mt-2 block w-full text-xs"
-                    onChange={(e) => onFile(type, e.target.files?.[0])}
-                  />
-                  {f && (
-                    <div className="mt-3">
-                      <p className="truncate text-xs">{f.name}</p>
+                <div key={type} className="rounded-2xl border border-dashed border-[#0b1c33]/20 bg-[#f6f1e7] p-4">
+                  <p className="text-xs font-semibold tracking-wide uppercase mb-2">
+                    {label}
+                    {required && <span className="ml-1 text-[#9f1239]">*</span>}
+                  </p>
+                  
+                  {f ? (
+                    <div className="mt-2">
                       {f.mimeType.startsWith('image/') && (
-                        <img src={f.dataUrl} alt="" className="mt-2 h-28 w-full rounded-lg object-cover" />
+                        <img src={f.dataUrl} alt={label} className="mb-2 h-28 w-full rounded-lg object-cover border border-[#0b1c33]/10" />
                       )}
+                      <div className="flex items-center justify-between">
+                        <p className="truncate text-xs text-[#0b1c33]/70" title={f.name}>{f.name}</p>
+                        <button
+                          type="button"
+                          onClick={() => removeFile(type)}
+                          className="ml-2 text-xs font-semibold text-[#9f1239] hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
+                  ) : (
+                    <label className="cursor-pointer block mt-2">
+                      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-[#0b1c33]/20 bg-white py-6 px-4 hover:bg-[#0b1c33]/5 transition">
+                        <span className="text-xs font-medium text-[#0b1c33]/60 text-center">Click to choose a file</span>
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            onFile(type, e.target.files?.[0]);
+                            e.target.value = ''; // Reset input to allow re-uploading the same file
+                          }}
+                        />
+                      </div>
+                    </label>
                   )}
-                </label>
+                </div>
               );
             })}
           </div>
         </Card>
       )}
 
+      {/* ── Step 3: Review ── */}
       {step === 3 && (
         <Card>
-          <h2 className="font-display text-2xl">Review & pay</h2>
+          <h2 className="font-display text-2xl">Review application</h2>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <dt className="text-[#0b1c33]/50">Class</dt>
-              <dd className="font-semibold">
-                {category} — {LICENSE_CATEGORIES.find((c) => c.id === category)?.name}
-              </dd>
+              <dt className="text-[#0b1c33]/50">Class(es)</dt>
+              <dd className="font-semibold">{categories.join(', ')}</dd>
             </div>
             <div>
               <dt className="text-[#0b1c33]/50">Applicant</dt>
@@ -269,37 +457,50 @@ export default function Apply() {
               <dd className="font-semibold">{personal.nic}</dd>
             </div>
             <div>
+              <dt className="text-[#0b1c33]/50">Blood group</dt>
+              <dd className="font-semibold">{personal.bloodGroup}</dd>
+            </div>
+            <div>
               <dt className="text-[#0b1c33]/50">One-Day Service</dt>
               <dd className="font-semibold">{oneDay && eligibleOneDay ? 'Yes' : 'No'}</dd>
             </div>
+            <div>
+              <dt className="text-[#0b1c33]/50">Documents</dt>
+              <dd className="font-semibold">
+                {docs.map((d) => d.type).join(', ')}
+              </dd>
+            </div>
           </dl>
           <div className="mt-5 rounded-xl bg-[#0b1c33] p-4 text-[#f6f1e7]">
-            <p className="text-xs tracking-widest text-[#c6a15b] uppercase">Amount due now</p>
-            <p className="font-display text-3xl">
-              {formatMoney(FEES.application + (oneDay && eligibleOneDay ? FEES.one_day : 0))}
-            </p>
-            <p className="text-xs text-white/60">Application {formatMoney(FEES.application)}
-              {oneDay && eligibleOneDay ? ` + One-Day ${formatMoney(FEES.one_day)}` : ''}
+            <p className="text-xs tracking-widest text-[#c6a15b] uppercase">Estimated fee</p>
+            <p className="font-display text-3xl">{formatMoney(totalFee)}</p>
+            <p className="text-xs text-white/60">
+              {categories.length} × {formatMoney(FEES.application)} application
+              {eligibleOneDay && oneDay ? ` + One-Day ${formatMoney(FEES.one_day)}` : ''}
             </p>
           </div>
           <p className="mt-3 text-xs text-[#0b1c33]/55">
-            Submitting charges the demo card ending 4242. You can download a receipt from Payments.
+            Payment will be requested only after the application is approved. You can edit this application within 12 hours of submission.
           </p>
         </Card>
       )}
 
-      <div className="mt-5 flex justify-between">
-        <Button variant="secondary" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
-          Back
-        </Button>
-        {step < 3 ? (
-          <Button onClick={next}>Continue</Button>
-        ) : (
-          <Button onClick={submit} disabled={busy} variant="gold">
-            {busy && <Spinner />}
-            Submit & pay
+      {/* Navigation buttons */}
+      <div className="mt-5 flex flex-col gap-3">
+        {submitErr && <Alert kind="error">{submitErr}</Alert>}
+        <div className="flex justify-between">
+          <Button variant="secondary" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
+            Back
           </Button>
-        )}
+          {step < 3 ? (
+            <Button onClick={next}>Continue</Button>
+          ) : (
+            <Button onClick={submit} disabled={busy} variant="gold">
+              {busy && <Spinner />}
+              Submit application
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

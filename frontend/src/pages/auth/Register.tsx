@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/auth';
-import { useStore } from '../../lib/store';
+import { registerUser } from '../../lib/api';
+import { User } from '../../types';
 import { validateEmail, validateNIC, validatePassword, validatePhone } from '../../lib/utils';
 import { Alert, Button, Field, Input } from '../../components/ui';
 
 export default function Register() {
-  const { register } = useStore();
   const { enterSession } = useAuth();
   const nav = useNavigate();
   const [form, setForm] = useState({ name: '', nic: '', email: '', phone: '', password: '', confirm: '' });
@@ -17,7 +17,7 @@ export default function Register() {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     const next: Record<string, string> = {};
     if (form.name.trim().length < 3) next.name = 'Enter your full name.';
@@ -33,19 +33,33 @@ export default function Register() {
     setErrors(next);
     if (Object.keys(next).length) return;
 
-    const res = register({
-      name: form.name,
-      nic: form.nic,
-      email: form.email,
-      phone: form.phone,
-      password: form.password,
-    });
-    if (!res.ok) {
-      setBanner(res.error);
-      return;
+    try {
+      const user = await registerUser({
+        name: form.name,
+        nic: form.nic,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+        role: 'APPLICANT', // Matches Java enum
+      });
+      // Ensure the returned user is treated as type User
+      // Convert the uppercase backend role to lowercase for the frontend
+      const appUser = {
+        ...user,
+        role: user.role.toLowerCase() as any
+      };
+      enterSession(appUser);
+      nav('/app');
+    } catch (err: any) {
+      const msg = err.message || '';
+      if (msg.toLowerCase().includes('nic already exists')) {
+        setErrors({ nic: 'This NIC is already registered.' });
+      } else if (msg.toLowerCase().includes('email already exists')) {
+        setErrors({ email: 'This email is already registered.' });
+      } else {
+        setBanner(msg || 'Registration failed');
+      }
     }
-    enterSession(res.user);
-    nav('/app');
   }
 
   return (

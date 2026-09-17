@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Role, User } from '../types';
 import { ROLE_HOME } from '../types';
 import { useStore } from './store';
+import { loginUser } from './api';
 
 const SESSION_KEY = 'nmta-session';
 const IDLE_MS = 20 * 60 * 1000;

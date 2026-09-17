@@ -55,7 +55,7 @@ export function initials(name: string): string {
 }
 
 export function validateNIC(nic: string): string | null {
-  const v = nic.trim().toUpperCase();
+  const v = nic.replace(/\s+/g, '').toUpperCase();
   if (!/^\d{9}[VX]$/.test(v) && !/^\d{12}$/.test(v)) {
     return 'Enter a valid NIC (9 digits + V/X, or 12 digits).';
   }
@@ -68,8 +68,8 @@ export function validateEmail(email: string): string | null {
 }
 
 export function validatePhone(phone: string): string | null {
-  const p = phone.replace(/\s/g, '');
-  if (!/^(\+94|0)?7\d{8}$/.test(p)) return 'Enter a valid Sri Lankan mobile number.';
+  const p = phone.replace(/\D/g, '');
+  if (p.length < 9 || p.length > 15) return 'Enter a valid phone number.';
   return null;
 }
 
@@ -135,7 +135,7 @@ export function fileToDataUrl(file: File): Promise<string> {
 export function validateUpload(file: File): string | null {
   const ok = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
   if (!ok.includes(file.type)) return 'Only JPG, PNG, WEBP or PDF files are accepted.';
-  if (file.size > 2 * 1024 * 1024) return 'File must be 2 MB or smaller.';
+  if (file.size > 20 * 1024 * 1024) return 'File must be 20 MB or smaller.';
   return null;
 }
 

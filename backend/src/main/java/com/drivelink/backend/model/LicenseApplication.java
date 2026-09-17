@@ -18,7 +18,7 @@ public class LicenseApplication {
     // step 1 : category
     // A, A1, B, B1, C, C1, D, G, CE
     @Column(nullable = false)
-    private String applicantEmail;
+    private String licenseClasses;
 
     private boolean oneDayService;
 
@@ -27,7 +27,7 @@ public class LicenseApplication {
     private String fullName;
 
     @Column(nullable = false)
-    private String NIC;
+    private String nic;
 
     @Column(nullable = false)
     private String dateOfBirth;
@@ -57,7 +57,7 @@ public class LicenseApplication {
     @Column (nullable = false)
     private String passportPhotoPath;
 
-    @Column (nullable = false)
+    @Column (nullable = true)
     private String medicalReportPath;
 
     // status : by reg officer
@@ -66,6 +66,9 @@ public class LicenseApplication {
 
     @Column(nullable = true)
     private String officerNotes;
+
+    @Column(nullable = true)
+    private String rejectionReason;
 
     // submitted time
     @Column(nullable = false)
@@ -87,8 +90,8 @@ public class LicenseApplication {
         return applicantName;
     }
 
-    public String getApplicantEmail() {
-        return applicantEmail;
+    public String getLicenseClasses() {
+        return licenseClasses;
     }
 
     public boolean isOneDayService() {
@@ -99,8 +102,8 @@ public class LicenseApplication {
         return fullName;
     }
 
-    public String getNIC() {
-        return NIC;
+    public String getNic() {
+        return nic;
     }
 
     public String getDateOfBirth() {
@@ -173,8 +176,8 @@ public class LicenseApplication {
         this.applicantName = applicantName;
     }
 
-    public void setApplicantEmail(String applicantEmail) {
-        this.applicantEmail = applicantEmail;
+    public void setLicenseClasses(String licenseClasses) {
+        this.licenseClasses = licenseClasses;
     }
 
     public void setOneDayService(boolean oneDayService) {
@@ -185,8 +188,8 @@ public class LicenseApplication {
         this.fullName = fullName;
     }
 
-    public void setNIC(String NIC) {
-        this.NIC = NIC;
+    public void setNic(String nic) {
+        this.nic = nic;
     }
 
     public void setDateOfBirth(String dateOfBirth) {
@@ -243,5 +246,13 @@ public class LicenseApplication {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
     }
 }
