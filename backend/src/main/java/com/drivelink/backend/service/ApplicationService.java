@@ -87,6 +87,7 @@ public class ApplicationService {
             MultipartFile nicCopy,
             MultipartFile passportPhoto,
             MultipartFile medicalReport
+
     ) throws IOException {
 
         Optional<LicenseApplication> found = applicationRepository.findById(id);
