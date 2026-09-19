@@ -3,9 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   getApplicationByIdAPI,
   updateApplicationStatusAPI,
+  verifyDocumentsAPI,
+  issueLicenseAPI,
   getDocumentUrl,
   type BackendApplication,
 } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 import { Alert, Button, Card, Field, PageHeader, Spinner, Textarea } from '../../components/ui';
 import { useToast } from '../../components/Toast';
 
@@ -34,6 +37,7 @@ export default function OfficerReview() {
   const { id } = useParams();
   const nav = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
 
   const [app, setApp] = useState<BackendApplication | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,17 +84,57 @@ export default function OfficerReview() {
     }
   }
 
+  async function handleVerifyDocs() {
+    if (!app || !user) return;
+    setBusy(true);
+    try {
+      const updated = await verifyDocumentsAPI(app.id, user.id, officerNotes);
+      setApp(updated);
+      toast.success('Documents verified successfully.');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Verification failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleIssueLicense() {
+    if (!app || !user) return;
+    setBusy(true);
+    try {
+      await issueLicenseAPI(app.id, user.id);
+      // Refresh app to get updated status
+      const updated = await getApplicationByIdAPI(app.id);
+      setApp(updated);
+      toast.success('License issued successfully!');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'License issuance failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (loading) return <div className="flex items-center justify-center py-20"><Spinner /></div>;
   if (error || !app) return <Alert kind="error">{error || 'Application not found.'}</Alert>;
 
   const after12h = isAfter12Hours(app.submittedAt);
-  const canAct = app.status === 'pending' || app.status === 'submitted'; // officer can only act on pending or submitted
+  const canAct = ['pending', 'submitted', 'documents_verified'].includes(app.status);
+  const canVerifyDocs = ['pending', 'submitted'].includes(app.status);
+  const canIssueLicense = app.status === 'trial_passed';
 
   const statusColors: Record<string, string> = {
     submitted: 'bg-yellow-100 text-yellow-800',
     pending: 'bg-yellow-100 text-yellow-800',
+    documents_verified: 'bg-blue-100 text-blue-800',
     approved: 'bg-green-100 text-green-800',
     rejected: 'bg-red-100 text-red-800',
+    exam_booked: 'bg-purple-100 text-purple-800',
+    exam_passed: 'bg-teal-100 text-teal-800',
+    exam_failed: 'bg-orange-100 text-orange-800',
+    trial_booked: 'bg-indigo-100 text-indigo-800',
+    trial_passed: 'bg-emerald-100 text-emerald-800',
+    trial_failed: 'bg-rose-100 text-rose-800',
+    license_issued: 'bg-sky-100 text-sky-800',
   };
 
   const docs = [
@@ -122,13 +166,43 @@ export default function OfficerReview() {
       {/* Approved/Rejected outcome */}
       {app.status === 'approved' && (
         <div className="mb-4">
-          <Alert kind="success" title="Approved">This application has been approved.</Alert>
+          <Alert kind="success" title="Stage 1 Approved — Ready for Theory Examination">
+            This application and its documents have been approved by the Registration Officer. The applicant is now eligible to book their computerized theory exam. Licences cannot be issued at this first stage; issuance unlocks once the applicant passes the practical driving trial.
+          </Alert>
+        </div>
+      )}
+      {app.status === 'exam_booked' && (
+        <div className="mb-4">
+          <Alert kind="info" title="Stage 2: Theory Exam Booked">
+            The applicant has booked a computerized theory examination slot and is awaiting their test sitting.
+          </Alert>
+        </div>
+      )}
+      {app.status === 'exam_passed' && (
+        <div className="mb-4">
+          <Alert kind="success" title="Stage 2: Theory Exam Passed">
+            The applicant passed the computerized theory examination. They can now book a practical driving trial.
+          </Alert>
+        </div>
+      )}
+      {app.status === 'trial_booked' && (
+        <div className="mb-4">
+          <Alert kind="info" title="Stage 3: Practical Trial Booked">
+            The applicant has booked a driving trial slot and is preparing for their practical test.
+          </Alert>
+        </div>
+      )}
+      {app.status === 'trial_passed' && (
+        <div className="mb-4">
+          <Alert kind="success" title="Final Stage: Practical Trial Passed — Ready for Licence Issuance!">
+            The applicant has passed the practical driving trial! You can now generate and issue their official driving licence below.
+          </Alert>
         </div>
       )}
       {app.status === 'rejected' && app.rejectionReason && (
         <div className="mb-4">
-          <Alert kind="error" title="Rejected">
-            Reason given to applicant: <strong>{app.rejectionReason}</strong>
+          <Alert kind="error" title="Application Rejected">
+            Reason given to applicant: <strong>{app.rejectionReason}</strong>. The applicant is permitted to reapply with corrected particulars.
           </Alert>
         </div>
       )}
@@ -263,11 +337,68 @@ export default function OfficerReview() {
             </Card>
           )}
 
-          {!canAct && app.status !== 'pending' && (
+          {!canAct && app.status !== 'pending' && app.status !== 'license_issued' && (
             <Card>
               <p className="text-sm text-[#0b1c33]/55">
                 This application has already been <strong>{app.status}</strong>. No further action is required.
               </p>
+            </Card>
+          )}
+
+          {/* Verify Documents */}
+          {canVerifyDocs && (
+            <Card>
+              <h3 className="font-display text-lg mb-2 text-blue-700">Verify documents</h3>
+              <p className="text-xs text-[#0b1c33]/55 mb-3">
+                Verify that all uploaded documents (NIC, photo, medical) are valid and authentic.
+              </p>
+              <Button
+                disabled={busy}
+                onClick={handleVerifyDocs}
+                className="w-full"
+              >
+                {busy ? <Spinner /> : null}
+                📋 Verify documents
+              </Button>
+            </Card>
+          )}
+
+          {/* Issue License — only when trial passed */}
+          {canIssueLicense && (
+            <Card>
+              <h3 className="font-display text-lg mb-2 text-green-700">Issue driving licence</h3>
+              <p className="text-xs text-[#0b1c33]/55 mb-3">
+                All stages complete: Documents verified & approved, theory exam passed, and practical driving trial passed. Generate and issue the official licence card.
+              </p>
+              <Button
+                variant="gold"
+                disabled={busy}
+                onClick={handleIssueLicense}
+                className="w-full"
+              >
+                {busy ? <Spinner /> : null}
+                🪪 Issue driving licence
+              </Button>
+            </Card>
+          )}
+
+          {!canIssueLicense && ['approved', 'exam_booked', 'exam_passed', 'trial_booked'].includes(app.status) && (
+            <Card>
+              <h3 className="font-display text-base font-semibold text-[#0b1c33] mb-1">Licence Issuance Locked</h3>
+              <p className="text-xs text-[#0b1c33]/60 leading-relaxed">
+                Licences cannot be issued at the initial application stage. The applicant must complete their computerized theory exam and pass the practical driving trial before a licence can be issued.
+              </p>
+              <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-2 text-[11px] text-amber-800">
+                Current stage: <strong>{app.status}</strong>
+              </div>
+            </Card>
+          )}
+
+          {app.status === 'license_issued' && (
+            <Card>
+              <Alert kind="success" title="Licence issued">
+                A driving licence has been issued for this application. The applicant can now collect their licence.
+              </Alert>
             </Card>
           )}
 

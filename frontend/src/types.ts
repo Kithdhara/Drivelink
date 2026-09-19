@@ -48,7 +48,7 @@ export interface User {
   nic: string;
   email: string;
   phone: string;
-  password: string;
+  password?: string;
   role: Role;
   active: boolean;
   address?: string;

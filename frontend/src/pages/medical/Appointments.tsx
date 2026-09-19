@@ -1,23 +1,38 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../lib/auth';
-import { locById, useStore } from '../../lib/store';
-import { formatDate } from '../../lib/utils';
-import { Alert, Badge, Button, Card, Field, Input, PageHeader, Select, Textarea } from '../../components/ui';
+import { Alert, Badge, Button, Card, Field, Input, PageHeader, Select, Spinner, Textarea } from '../../components/ui';
+import { useToast } from '../../components/Toast';
+import {
+  getAllMedicalsAPI,
+  recordMedicalResultAPI,
+  type BackendMedicalAppointment,
+} from '../../lib/api';
+
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString('en-LK', { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
 export default function MedicalAppointments() {
   const { user } = useAuth();
-  const { state, recordMedical, log } = useStore();
+  const toast = useToast();
+  const [loading, setLoading] = useState(true);
+  const [rows, setRows] = useState<BackendMedicalAppointment[]>([]);
   const [msg, setMsg] = useState('');
   const [draft, setDraft] = useState<
-    Record<string, { result: 'pass' | 'fail'; remarks: string; vision: string; hearing: string; bloodPressure: string }>
+    Record<number, { result: 'PASS' | 'FAIL'; remarks: string; vision: string; hearing: string; bloodPressure: string }>
   >({});
 
-  const rows = state.medicals.filter((m) => m.status === 'booked' || m.status === 'completed');
+  useEffect(() => {
+    getAllMedicalsAPI()
+      .then(setRows)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
-  function d(id: string) {
+  function d(id: number) {
     return (
       draft[id] ?? {
-        result: 'pass' as const,
+        result: 'PASS' as const,
         remarks: '',
         vision: '6/6',
         hearing: 'Normal',
@@ -26,25 +41,29 @@ export default function MedicalAppointments() {
     );
   }
 
-  function save(id: string) {
+  async function save(id: number) {
     if (!user) return;
     const x = d(id);
-    recordMedical(id, user.id, x.result, {
-      remarks: x.remarks,
-      vision: x.vision,
-      hearing: x.hearing,
-      bloodPressure: x.bloodPressure,
-    });
-    log({
-      userId: user.id,
-      userName: user.name,
-      action: 'MEDICAL_RESULT',
-      entity: 'MedicalAppointment',
-      entityId: id,
-      details: x.result,
-    });
-    setMsg('Medical result recorded.');
+    try {
+      await recordMedicalResultAPI(id, {
+        officerId: user.id,
+        result: x.result,
+        remarks: x.remarks,
+        vision: x.vision,
+        hearing: x.hearing,
+        bloodPressure: x.bloodPressure,
+      });
+      toast.success('Medical result recorded.');
+      setMsg('Medical result recorded.');
+      // Refresh
+      const updated = await getAllMedicalsAPI().catch(() => []);
+      setRows(updated);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save result');
+    }
   }
+
+  if (loading) return <div className="flex items-center justify-center py-20"><Spinner /></div>;
 
   return (
     <div>
@@ -55,25 +74,25 @@ export default function MedicalAppointments() {
       />
       {msg && <Alert kind="success">{msg}</Alert>}
       <div className="mt-4 space-y-4">
+        {rows.length === 0 && <p className="text-sm text-[#0b1c33]/55">No appointments found.</p>}
         {rows.map((m) => {
-          const u = state.users.find((x) => x.id === m.applicantId);
           const x = d(m.id);
           return (
             <Card key={m.id}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold">
-                    {u?.name} · {m.applicationId}
+                    Applicant: {m.applicantId}
                   </p>
                   <p className="text-sm text-[#0b1c33]/55">
-                    {formatDate(m.date)} {m.time} · {locById(state.locations, m.locationId)?.name}
+                    {formatDate(m.date)} · {m.timeSlot} · {m.centreName}
                   </p>
                 </div>
-                <Badge tone={m.result === 'fail' ? 'danger' : m.result === 'pass' ? 'success' : 'warn'}>
+                <Badge tone={m.result === 'FAIL' ? 'danger' : m.result === 'PASS' ? 'success' : 'warn'}>
                   {m.result ?? m.status}
                 </Badge>
               </div>
-              {m.status === 'booked' && (
+              {m.status === 'BOOKED' && (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Field label="Vision">
                     <Input value={x.vision} onChange={(e) => setDraft({ ...draft, [m.id]: { ...x, vision: e.target.value } })} />
@@ -82,18 +101,15 @@ export default function MedicalAppointments() {
                     <Input value={x.hearing} onChange={(e) => setDraft({ ...draft, [m.id]: { ...x, hearing: e.target.value } })} />
                   </Field>
                   <Field label="Blood pressure">
-                    <Input
-                      value={x.bloodPressure}
-                      onChange={(e) => setDraft({ ...draft, [m.id]: { ...x, bloodPressure: e.target.value } })}
-                    />
+                    <Input value={x.bloodPressure} onChange={(e) => setDraft({ ...draft, [m.id]: { ...x, bloodPressure: e.target.value } })} />
                   </Field>
                   <Field label="Finding">
                     <Select
                       value={x.result}
-                      onChange={(e) => setDraft({ ...draft, [m.id]: { ...x, result: e.target.value as 'pass' | 'fail' } })}
+                      onChange={(e) => setDraft({ ...draft, [m.id]: { ...x, result: e.target.value as 'PASS' | 'FAIL' } })}
                     >
-                      <option value="pass">Fit to drive</option>
-                      <option value="fail">Unfit / refer</option>
+                      <option value="PASS">Fit to drive</option>
+                      <option value="FAIL">Unfit / refer</option>
                     </Select>
                   </Field>
                   <div className="sm:col-span-2">
@@ -104,7 +120,7 @@ export default function MedicalAppointments() {
                   <Button onClick={() => save(m.id)}>Save medical result</Button>
                 </div>
               )}
-              {m.status === 'completed' && (
+              {m.status === 'COMPLETED' && (
                 <p className="mt-3 text-sm">
                   Vision {m.vision} · Hearing {m.hearing} · BP {m.bloodPressure}
                   {m.remarks ? ` · ${m.remarks}` : ''}

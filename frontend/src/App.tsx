@@ -17,11 +17,15 @@ import ApplicationDetail from './pages/applicant/ApplicationDetail';
 import BookMedical from './pages/applicant/BookMedical';
 import BookExam from './pages/applicant/BookExam';
 import BookTrial from './pages/applicant/BookTrial';
+import ApplicantTickets from './pages/applicant/Tickets';
+import NewTicket from './pages/applicant/NewTicket';
 import Payments from './pages/applicant/Payments';
 import Complaints from './pages/applicant/Complaints';
 import OfficerDashboard from './pages/officer/Dashboard';
 import OfficerApplications from './pages/officer/Applications';
 import OfficerReview from './pages/officer/Review';
+import OfficerTickets from './pages/officer/Tickets';
+import OfficerTicketDetail from './pages/officer/TicketDetail';
 import OfficerReports from './pages/officer/Reports';
 import CoordinatorDashboard from './pages/coordinator/Dashboard';
 import CoordinatorSchedules from './pages/coordinator/Schedules';
@@ -68,6 +72,8 @@ function AppRoutes() {
         <Route path="medical" element={<BookMedical />} />
         <Route path="exam" element={<BookExam />} />
         <Route path="trial" element={<BookTrial />} />
+        <Route path="tickets" element={<ApplicantTickets />} />
+        <Route path="tickets/new" element={<NewTicket />} />
         <Route path="payments" element={<Payments />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="complaints" element={<Complaints />} />
@@ -85,6 +91,8 @@ function AppRoutes() {
         <Route index element={<OfficerDashboard />} />
         <Route path="applications" element={<OfficerApplications />} />
         <Route path="applications/:id" element={<OfficerReview />} />
+        <Route path="tickets" element={<OfficerTickets />} />
+        <Route path="tickets/:id" element={<OfficerTicketDetail />} />
         <Route path="reports" element={<OfficerReports />} />
         <Route path="notifications" element={<Notifications />} />
         <Route path="profile" element={<Profile />} />

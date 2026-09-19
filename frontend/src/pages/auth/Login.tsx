@@ -42,11 +42,19 @@ export default function Login() {
       setPendingRole(appUser.role);
       window.setTimeout(() => nav(ROLE_HOME[appUser.role], { replace: true }), 0);
       return;
-    } catch {
-      // Backend not available or login failed — fall back to mock store
+    } catch (backendErr: unknown) {
+      const errMsg = backendErr instanceof Error ? backendErr.message : '';
+      // If backend returned a specific error (not a network error), show it
+      if (errMsg && !errMsg.includes('Failed to fetch') && !errMsg.includes('NetworkError')) {
+        setBusy(false);
+        setPendingRole(null);
+        setError(errMsg || 'No account found for that email or incorrect password.');
+        return;
+      }
+      // Network error — backend might be down, fall through to demo accounts
     }
 
-    // Fallback: mock login (for demo accounts)
+    // Fallback: mock login (only for demo accounts when backend is unreachable)
     const res = login(nextEmail, nextPassword);
     if (!res.ok) {
       setBusy(false);

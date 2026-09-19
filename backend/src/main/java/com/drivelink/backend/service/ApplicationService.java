@@ -2,6 +2,7 @@ package com.drivelink.backend.service;
 
 import com.drivelink.backend.model.LicenseApplication;
 import com.drivelink.backend.repository.ApplicationRepository;
+import com.drivelink.backend.repository.MedicalAppointmentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +19,9 @@ public class ApplicationService {
 
     @Autowired
     private ApplicationRepository applicationRepository;
+
+    @Autowired
+    private MedicalAppointmentRepository medicalAppointmentRepository;
 
     // uploaded file saves on computer
     // folder creates automatically if it doesnt exist
@@ -42,6 +46,23 @@ public class ApplicationService {
         MultipartFile passportPhoto,
         MultipartFile medicalReport
     ) throws IOException {
+
+        // Step 1 Check: Applicant must have booked a medical examination
+        var medicals = medicalAppointmentRepository.findByApplicantId(applicantId);
+        if (medicals.isEmpty()) {
+            throw new IllegalStateException("Step 1 required: You must book a Medical Examination before submitting an application.");
+        }
+        boolean hasFailedMedical = medicals.stream().anyMatch(m -> "FAIL".equalsIgnoreCase(m.getResult()));
+        if (hasFailedMedical) {
+            throw new IllegalStateException("Your medical examination result is FAIL. You cannot apply for a driving licence.");
+        }
+
+        // Duplicate Check: Check if applicant already has an active or approved application
+        List<LicenseApplication> existing = applicationRepository.findByApplicantId(applicantId);
+        boolean hasActive = existing.stream().anyMatch(a -> !"rejected".equalsIgnoreCase(a.getStatus()));
+        if (hasActive) {
+            throw new IllegalStateException("You already have an active licence application on file. If your application was rejected, you may reapply.");
+        }
 
         String nicCopyPath      = saveFile(nicCopy, "nic");
         String passportPhotoPath = saveFile(passportPhoto, "passport");
@@ -94,6 +115,11 @@ public class ApplicationService {
         if (found.isEmpty()) return Optional.empty();
 
         LicenseApplication app = found.get();
+
+        // Enforce lock if status is already approved or processed
+        if (!"pending".equalsIgnoreCase(app.getStatus()) && !"submitted".equalsIgnoreCase(app.getStatus())) {
+            throw new IllegalStateException("Application is locked. Approved or completed applications cannot be edited.");
+        }
 
         // Enforce 12-hour lock
         if (app.getSubmittedAt().isBefore(LocalDateTime.now().minusHours(12))) {

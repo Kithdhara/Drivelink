@@ -38,6 +38,7 @@ const MENUS: Record<Role, { to: string; label: string; icon: typeof LayoutDashbo
     { to: '/app/medical', label: 'Medical Booking', icon: Stethoscope },
     { to: '/app/exam', label: 'Exam Booking', icon: ClipboardList },
     { to: '/app/trial', label: 'Trial Booking', icon: Car },
+    { to: '/app/tickets', label: 'Correction Tickets', icon: FileText },
     { to: '/app/payments', label: 'Payments', icon: CreditCard },
     { to: '/app/notifications', label: 'Notifications', icon: Bell },
     { to: '/app/complaints', label: 'Complaints', icon: MessageSquareWarning },
@@ -46,6 +47,7 @@ const MENUS: Record<Role, { to: string; label: string; icon: typeof LayoutDashbo
   officer: [
     { to: '/officer', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/officer/applications', label: 'Applications', icon: FileText },
+    { to: '/officer/tickets', label: 'Override Tickets', icon: Shield },
     { to: '/officer/reports', label: 'Reports', icon: ScrollText },
     { to: '/officer/notifications', label: 'Notifications', icon: Bell },
     { to: '/officer/profile', label: 'Profile', icon: UserRound },

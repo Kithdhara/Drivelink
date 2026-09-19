@@ -365,8 +365,8 @@ export function Th({ children, className }: { children?: ReactNode; className?: 
   );
 }
 
-export function Td({ children, className }: { children: ReactNode; className?: string }) {
-  return <td className={cls('border-t border-[#0b1c33]/6 px-4 py-3 align-middle', className)}>{children}</td>;
+export function Td({ children, className, colSpan }: { children: ReactNode; className?: string; colSpan?: number }) {
+  return <td colSpan={colSpan} className={cls('border-t border-[#0b1c33]/6 px-4 py-3 align-middle', className)}>{children}</td>;
 }
 
 export function Breadcrumb({ items }: { items: { label: string }[] }) {

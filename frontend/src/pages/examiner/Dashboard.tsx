@@ -1,17 +1,32 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardCheck, CalendarDays } from 'lucide-react';
 import { useAuth } from '../../lib/auth';
-import { locById, useStore } from '../../lib/store';
-import { todayISO } from '../../lib/utils';
-import { Badge, Button, Card, PageHeader, StatCard } from '../../components/ui';
+import { getAllExamsAPI, getAllTrialsAPI, type BackendExamBooking, type BackendTrialBooking } from '../../lib/api';
+import { Button, Card, PageHeader, Spinner, StatCard } from '../../components/ui';
 
 export default function ExaminerDashboard() {
   const { user } = useAuth();
-  const { state } = useStore();
-  const today = todayISO();
-  const exams = state.exams.filter((e) => e.date === today && e.status === 'booked');
-  const trials = state.trials.filter((e) => e.date === today && e.status === 'booked');
-  const marked = [...state.exams, ...state.trials].filter((e) => e.examinerId === user?.id && e.status === 'completed');
+  const [exams, setExams] = useState<BackendExamBooking[]>([]);
+  const [trials, setTrials] = useState<BackendTrialBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      getAllExamsAPI().catch(() => []),
+      getAllTrialsAPI().catch(() => []),
+    ]).then(([e, t]) => {
+      setExams(e);
+      setTrials(t);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayExams = exams.filter((e) => e.date === today && e.status === 'BOOKED');
+  const todayTrials = trials.filter((t) => t.date === today && t.status === 'BOOKED');
+  const marked = [...exams, ...trials].filter((e) => e.examinerId === user?.id && e.status === 'COMPLETED');
+
+  if (loading) return <div className="flex items-center justify-center py-20"><Spinner /></div>;
 
   return (
     <div>
@@ -21,36 +36,33 @@ export default function ExaminerDashboard() {
         subtitle="Record written, computer and practical results against the published roll."
         actions={
           <Link to="/examiner/schedule">
-            <Button>Open today’s roll</Button>
+            <Button>Open today's roll</Button>
           </Link>
         }
       />
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Exams today" value={exams.length} tone="ink" icon={<ClipboardCheck />} />
-        <StatCard label="Trials today" value={trials.length} tone="gold" icon={<CalendarDays />} />
+        <StatCard label="Exams today" value={todayExams.length} tone="ink" icon={<ClipboardCheck />} />
+        <StatCard label="Trials today" value={todayTrials.length} tone="gold" icon={<CalendarDays />} />
         <StatCard label="Results you recorded" value={marked.length} tone="teal" />
       </div>
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Card>
           <h2 className="font-display text-xl">Exam sittings today</h2>
-          {exams.map((e) => (
-            <p key={e.id} className="mt-2 flex justify-between text-sm">
-              <span>
-                {e.time} · {locById(state.locations, e.locationId)?.name}
-              </span>
-              <Badge>{e.kind}</Badge>
+          {todayExams.map((e) => (
+            <p key={e.id} className="mt-2 text-sm">
+              {e.timeSlot} · {e.centreName} · Applicant: {e.applicantId}
             </p>
           ))}
-          {exams.length === 0 && <p className="mt-2 text-sm text-[#0b1c33]/50">No theory sittings booked today.</p>}
+          {todayExams.length === 0 && <p className="mt-2 text-sm text-[#0b1c33]/50">No theory sittings booked today.</p>}
         </Card>
         <Card>
           <h2 className="font-display text-xl">Trials today</h2>
-          {trials.map((e) => (
-            <p key={e.id} className="mt-2 text-sm">
-              {e.time} · {locById(state.locations, e.locationId)?.name}
+          {todayTrials.map((t) => (
+            <p key={t.id} className="mt-2 text-sm">
+              {t.timeSlot} · {t.centreName} · Applicant: {t.applicantId}
             </p>
           ))}
-          {trials.length === 0 && <p className="mt-2 text-sm text-[#0b1c33]/50">No practicals booked today.</p>}
+          {todayTrials.length === 0 && <p className="mt-2 text-sm text-[#0b1c33]/50">No practicals booked today.</p>}
         </Card>
       </div>
     </div>

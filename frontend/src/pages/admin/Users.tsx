@@ -147,7 +147,7 @@ export default function AdminUsers() {
                       nic: u.nic,
                       email: u.email,
                       phone: u.phone,
-                      password: u.password,
+                      password: u.password ?? '',
                       role: u.role,
                       active: u.active,
                     });

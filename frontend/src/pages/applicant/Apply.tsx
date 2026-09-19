@@ -23,7 +23,12 @@ import {
   Spinner,
   scrollToFirstError,
 } from '../../components/ui';
-import { createApplicationAPI, getApplicationsByApplicantAPI } from '../../lib/api';
+import {
+  createApplicationAPI,
+  getApplicationsByApplicantAPI,
+  getMedicalsByApplicantAPI,
+  type BackendApplication,
+} from '../../lib/api';
 
 const STEPS = ['Category', 'Personal', 'Documents', 'Review'];
 const MAX_CATEGORIES = 3;
@@ -39,16 +44,31 @@ export default function Apply() {
   const { pay, notify } = useStore();
   const nav = useNavigate();
 
-  /* ── Block check: has active (non-rejected) application? ── */
+  /* ── Prerequisites Check: Medical & Active Application ── */
   const [checking, setChecking] = useState(true);
-  const [blocked, setBlocked] = useState(false);
+  const [hasMedicalBooking, setHasMedicalBooking] = useState(true);
+  const [medicalFailed, setMedicalFailed] = useState(false);
+  const [activeApp, setActiveApp] = useState<BackendApplication | null>(null);
+  const [rejectedApp, setRejectedApp] = useState<BackendApplication | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    getApplicationsByApplicantAPI(user.id)
-      .then((apps) => {
-        const hasActive = apps.some((a) => a.status !== 'rejected' && a.status !== 'license_issued');
-        setBlocked(hasActive);
+    Promise.all([
+      getMedicalsByApplicantAPI(user.id).catch(() => []),
+      getApplicationsByApplicantAPI(user.id).catch(() => []),
+    ])
+      .then(([medicals, apps]) => {
+        // Step 1 check: Must have booked medical
+        const hasBooking = medicals.length > 0;
+        const failed = medicals.some((m) => m.result === 'FAIL');
+        setHasMedicalBooking(hasBooking);
+        setMedicalFailed(failed);
+
+        // Application checks
+        const active = apps.find((a) => a.status !== 'rejected' && a.status !== 'license_issued');
+        const rejected = apps.find((a) => a.status === 'rejected');
+        setActiveApp(active ?? null);
+        setRejectedApp(!active && rejected ? rejected : null);
       })
       .catch(() => {})
       .finally(() => setChecking(false));
@@ -203,22 +223,81 @@ export default function Apply() {
   /* ── Guard: loading or blocked ── */
   if (checking) return <div className="flex items-center justify-center py-20"><Spinner /></div>;
 
-  if (blocked) {
+  // 1. Step 1 Enforce: Must have booked medical
+  if (!hasMedicalBooking) {
     return (
       <div>
-        <PageHeader kicker="New issue" title="Licence application" subtitle="" />
+        <PageHeader kicker="Step 1 Required" title="Medical examination required" subtitle="" />
         <Card>
-          <Alert kind="warning" title="Active application on file">
-            You already have an active licence application. You may not submit another application
-            until your current one is <strong>approved</strong> or <strong>rejected</strong>.
-            <br />
-            <button
-              className="mt-3 text-sm font-semibold text-[#0e7c7b] underline"
-              onClick={() => nav('/app')}
-            >
-              Go to Dashboard →
-            </button>
+          <Alert kind="warning" title="Step 1: Book Your Medical Examination First">
+            Under Department regulations, you cannot access or submit a driving licence application without first booking a medical examination appointment.
+            <div className="mt-4 flex gap-3">
+              <Button variant="gold" onClick={() => nav('/app/medical')}>
+                Book Medical Examination →
+              </Button>
+              <Button variant="ghost" onClick={() => nav('/app')}>
+                Return to Dashboard
+              </Button>
+            </div>
           </Alert>
+        </Card>
+      </div>
+    );
+  }
+
+  // 2. Medical failed check
+  if (medicalFailed) {
+    return (
+      <div>
+        <PageHeader kicker="Medical requirement" title="Medical examination failed" subtitle="" />
+        <Card>
+          <Alert kind="error" title="Medical Fitness Test Failed">
+            Your medical examination recorded a FAIL result. You cannot submit an application for a driving licence until you have passed the medical examination.
+            <div className="mt-4">
+              <Button variant="secondary" onClick={() => nav('/app/medical')}>
+                View Medical Records →
+              </Button>
+            </div>
+          </Alert>
+        </Card>
+      </div>
+    );
+  }
+
+  // 3. Active application on file check
+  if (activeApp) {
+    const isApprovedOrFurther = ['approved', 'exam_booked', 'exam_passed', 'trial_booked', 'trial_passed'].includes(activeApp.status);
+    return (
+      <div>
+        <PageHeader kicker="Application Status" title="Licence application locked" subtitle="" />
+        <Card>
+          {isApprovedOrFurther ? (
+            <Alert kind="success" title={`Application #${activeApp.id} Approved & Locked`}>
+              Your driving licence application has been approved by the Registration Officer.
+              Approved applications are locked and cannot be edited or duplicated. You can now proceed to book your computerized theory examination.
+              <div className="mt-4 flex gap-3">
+                <Button variant="gold" onClick={() => nav('/app/exam')}>
+                  Book Theory Exam →
+                </Button>
+                <Button variant="secondary" onClick={() => nav(`/app/applications/${activeApp.id}`)}>
+                  View Application Details
+                </Button>
+              </div>
+            </Alert>
+          ) : (
+            <Alert kind="warning" title={`Application #${activeApp.id} Under Review`}>
+              You have an active licence application currently being processed by the Registration Officer (Status: <strong>{activeApp.status}</strong>).
+              Duplicate applications are not permitted while your file is under review.
+              <div className="mt-4 flex gap-3">
+                <Button variant="secondary" onClick={() => nav(`/app/applications/${activeApp.id}`)}>
+                  Track Application →
+                </Button>
+                <Button variant="ghost" onClick={() => nav('/app')}>
+                  Return to Dashboard
+                </Button>
+              </div>
+            </Alert>
+          )}
         </Card>
       </div>
     );
@@ -227,10 +306,20 @@ export default function Apply() {
   return (
     <div>
       <PageHeader
-        kicker="New issue"
-        title="Licence application"
-        subtitle="Complete all four steps. Application fee is collected after approval."
+        kicker="Licence application"
+        title="Apply for a driving licence"
+        subtitle="Complete all four steps. Application fee is collected after officer approval."
       />
+
+      {/* Reapplication alert banner if previous application was rejected */}
+      {rejectedApp && (
+        <div className="mb-6">
+          <Alert kind="info" title={`Reapplication Notice (Previous Application #${rejectedApp.id} Rejected)`}>
+            Your earlier application was rejected with the note: <strong>"{rejectedApp.rejectionReason || 'Requirements not met'}"</strong>.
+            You are permitted to reapply. Please complete the form below with your updated and verified particulars.
+          </Alert>
+        </div>
+      )}
 
       {/* Step indicators */}
       <div className="mb-6 grid grid-cols-4 gap-2">

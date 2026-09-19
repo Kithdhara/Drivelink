@@ -42,7 +42,23 @@ export function hoursUntil(date: string, time: string): number {
 }
 
 export function canReschedule(date: string, time: string): boolean {
-  return hoursUntil(date, time) >= 24;
+  return hoursUntil(date, time) >= 12;
+}
+
+export function isWithin12Hours(createdAt?: string | null): boolean {
+  if (!createdAt) return true;
+  const created = new Date(createdAt).getTime();
+  if (isNaN(created)) return true;
+  const elapsedHours = (Date.now() - created) / (1000 * 60 * 60);
+  return elapsedHours <= 12;
+}
+
+export function remainingEditHours(createdAt?: string | null): number {
+  if (!createdAt) return 12;
+  const created = new Date(createdAt).getTime();
+  if (isNaN(created)) return 12;
+  const elapsedHours = (Date.now() - created) / (1000 * 60 * 60);
+  return Math.max(0, Math.round((12 - elapsedHours) * 10) / 10);
 }
 
 export function initials(name: string): string {
