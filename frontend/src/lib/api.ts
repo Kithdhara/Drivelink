@@ -41,7 +41,7 @@ export function getAuthToken(): string | null {
 
 // In development: empty string — Vite proxy forwards /api/* to localhost:8080
 // In production: reads VITE_API_BASE_URL (your Railway URL) set in .env.production
-export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '') + '/api';
+export const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://drivelink-production.up.railway.app') + '/api';
 
 // ----- Generic fetch wrapper (for future use) -----
 export async function apiFetch<T>(
