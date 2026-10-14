@@ -54,10 +54,10 @@ public class ApplicationController {
         }
     }
 
-    // ════════════════════════════════════════════════════════════
+
     //  POST /api/applications  (multipart/form-data)
     //  Submit a new licence application with uploaded documents
-    // ════════════════════════════════════════════════════════════
+
     @PostMapping(consumes = "multipart/form-data")
     public ResponseEntity<?> createApplication(
             @RequestParam("licenseClasses")  String licenseClasses,
@@ -101,10 +101,10 @@ public class ApplicationController {
         }
     }
 
-    // ════════════════════════════════════════════════════════════
+
     //  PUT /api/applications/{id}/edit  (multipart/form-data)
     //  Applicant edits application — only within 12 hours
-    // ════════════════════════════════════════════════════════════
+
     @PutMapping(value = "/{id}/edit", consumes = "multipart/form-data")
     public ResponseEntity<?> editApplication(
             @PathVariable Long id,
