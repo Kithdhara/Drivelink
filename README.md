@@ -35,8 +35,7 @@
 
 The complete system is deployed and accessible in the cloud:
 
-* **Frontend Web App (Vercel):** [https://drivelink-fawn.vercel.app](https://drivelink-fawn.vercel.app)
-* **Backend REST API (Railway):** [https://drivelink-production.up.railway.app](https://drivelink-production.up.railway.app)
+* **Web App :** [https://drivelink-fawn.vercel.app](https://drivelink-fawn.vercel.app)
 * **Cloud Document Storage:** Cloudinary CDN
 
 ---
