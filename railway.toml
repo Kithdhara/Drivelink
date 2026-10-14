@@ -1,0 +1,14 @@
+# railway.toml
+# Tells Railway to build the backend/ subdirectory, not the repo root.
+# See: https://docs.railway.app/reference/config-as-code
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "cd backend && ./mvnw clean package -DskipTests"
+
+[deploy]
+startCommand = "java -jar backend/target/*.jar"
+healthcheckPath = "/api/auth/health"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

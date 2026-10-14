@@ -1,5 +1,3 @@
-package com.drivelink.backend.service;
-
 import com.drivelink.backend.model.LicenseRecord;
 import com.drivelink.backend.model.RenewalRequest;
 import com.drivelink.backend.model.RenewalStatus;
@@ -7,6 +5,7 @@ import com.drivelink.backend.repository.LicenseRecordRepository;
 import com.drivelink.backend.repository.RenewalRepository;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -18,13 +17,15 @@ public class RenewalService {
 
     private final RenewalRepository renewalRepository;
     private final LicenseRecordRepository licenseRecordRepository;
+    private final CloudinaryUploadService cloudinaryUploadService;
 
-    public RenewalService(RenewalRepository renewalRepository, LicenseRecordRepository licenseRecordRepository) {
+    public RenewalService(RenewalRepository renewalRepository,
+                          LicenseRecordRepository licenseRecordRepository,
+                          CloudinaryUploadService cloudinaryUploadService) {
         this.renewalRepository = renewalRepository;
         this.licenseRecordRepository = licenseRecordRepository;
+        this.cloudinaryUploadService = cloudinaryUploadService;
     }
-
-    private final String UPLOAD_DIR = "uploads/renewals/";
 
     // CRUD 1: Submit a renewal request
     public RenewalRequest create(RenewalRequest request) {
@@ -73,13 +74,13 @@ public class RenewalService {
         request.setStatus(RenewalStatus.PENDING);
 
         if (nicCopy != null && !nicCopy.isEmpty()) {
-            request.setNicCopyPath(saveFile(nicCopy, "nic"));
+            request.setNicCopyPath(cloudinaryUploadService.upload(nicCopy, "drivelink/renewals"));
         }
         if (passportPhoto != null && !passportPhoto.isEmpty()) {
-            request.setPhotoPath(saveFile(passportPhoto, "photo"));
+            request.setPhotoPath(cloudinaryUploadService.upload(passportPhoto, "drivelink/renewals"));
         }
         if (medicalReport != null && !medicalReport.isEmpty()) {
-            request.setMedicalReportPath(saveFile(medicalReport, "medical"));
+            request.setMedicalReportPath(cloudinaryUploadService.upload(medicalReport, "drivelink/renewals"));
         }
 
         return renewalRepository.save(request);
@@ -89,20 +90,6 @@ public class RenewalService {
         if (licenseNumber == null || !licenseNumber.trim().toUpperCase().matches("^[A-Z][0-9]{7}$")) {
             throw new IllegalArgumentException("Existing licence number must be 1 capital letter followed by 7 digits (e.g. B1234567)");
         }
-    }
-
-    private String saveFile(org.springframework.web.multipart.MultipartFile file, String prefix) throws java.io.IOException {
-        java.nio.file.Path uploadPath = java.nio.file.Paths.get(UPLOAD_DIR);
-        if (!java.nio.file.Files.exists(uploadPath)) {
-            java.nio.file.Files.createDirectories(uploadPath);
-        }
-        String originalName = file.getOriginalFilename();
-        String extension = originalName != null && originalName.contains(".")
-                ? originalName.substring(originalName.lastIndexOf(".")) : ".bin";
-        String newFileName = prefix + "_" + java.util.UUID.randomUUID() + extension;
-        java.nio.file.Path filePath = uploadPath.resolve(newFileName);
-        java.nio.file.Files.copy(file.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-        return UPLOAD_DIR + newFileName;
     }
 
     // CRUD 2: Get renewal by ID / Get by applicant

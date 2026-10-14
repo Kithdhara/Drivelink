@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -21,8 +20,7 @@ public class TicketService {
     private final ExamBookingRepository examRepo;
     private final TrialBookingRepository trialRepo;
     private final LicenseRecordRepository licenseRepo;
-
-    private static final String UPLOAD_DIR = "uploads/tickets/";
+    private final CloudinaryUploadService cloudinaryUploadService;
 
     public TicketService(
             SupportTicketRepository ticketRepo,
@@ -31,7 +29,8 @@ public class TicketService {
             AuditLogRepository auditRepo,
             ExamBookingRepository examRepo,
             TrialBookingRepository trialRepo,
-            LicenseRecordRepository licenseRepo
+            LicenseRecordRepository licenseRepo,
+            CloudinaryUploadService cloudinaryUploadService
     ) {
         this.ticketRepo = ticketRepo;
         this.appRepo = appRepo;
@@ -40,29 +39,15 @@ public class TicketService {
         this.examRepo = examRepo;
         this.trialRepo = trialRepo;
         this.licenseRepo = licenseRepo;
-
-        // Ensure directory exists
-        try {
-            Files.createDirectories(Paths.get(UPLOAD_DIR));
-        } catch (IOException e) {
-            System.err.println("Could not create ticket uploads dir: " + e.getMessage());
-        }
+        this.cloudinaryUploadService = cloudinaryUploadService;
     }
 
-    private String saveFile(MultipartFile file, String prefix) {
+    private String saveFile(MultipartFile file, String folder) {
         if (file == null || file.isEmpty()) return null;
         try {
-            String originalFilename = file.getOriginalFilename();
-            String ext = "";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                ext = originalFilename.substring(originalFilename.lastIndexOf("."));
-            }
-            String filename = prefix + "_" + UUID.randomUUID() + ext;
-            Path target = Paths.get(UPLOAD_DIR).resolve(filename);
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
-            return filename;
+            return cloudinaryUploadService.upload(file, folder);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to store ticket proof document: " + e.getMessage(), e);
+            throw new RuntimeException("Failed to upload ticket proof document: " + e.getMessage(), e);
         }
     }
 
@@ -123,15 +108,15 @@ public class TicketService {
         ticket.setRequestedEmergencyContact(requestedEmergencyContact);
         ticket.setReason(reason);
 
-        // Upload proof documents
+        // Upload proof documents to Cloudinary
         if (nicCopy != null && !nicCopy.isEmpty()) {
-            ticket.setNicCopyPath(saveFile(nicCopy, "ticket_nic"));
+            ticket.setNicCopyPath(saveFile(nicCopy, "drivelink/tickets"));
         }
         if (birthCertificate != null && !birthCertificate.isEmpty()) {
-            ticket.setBirthCertificatePath(saveFile(birthCertificate, "ticket_birth_cert"));
+            ticket.setBirthCertificatePath(saveFile(birthCertificate, "drivelink/tickets"));
         }
         if (additionalDoc != null && !additionalDoc.isEmpty()) {
-            ticket.setAdditionalDocPath(saveFile(additionalDoc, "ticket_proof"));
+            ticket.setAdditionalDocPath(saveFile(additionalDoc, "drivelink/tickets"));
         }
 
         ticket.setStatus("PENDING_REVIEW");

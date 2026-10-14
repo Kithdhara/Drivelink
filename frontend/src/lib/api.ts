@@ -39,8 +39,9 @@ export function getAuthToken(): string | null {
   }
 }
 
-// TODO: Replace with your Spring Boot base URL
-export const API_BASE = '/api';
+// In development: empty string — Vite proxy forwards /api/* to localhost:8080
+// In production: reads VITE_API_BASE_URL (your Railway URL) set in .env.production
+export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '') + '/api';
 
 // ----- Generic fetch wrapper (for future use) -----
 export async function apiFetch<T>(

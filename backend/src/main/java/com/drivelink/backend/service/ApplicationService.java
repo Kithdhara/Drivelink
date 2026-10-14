@@ -8,12 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.*;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class ApplicationService {
@@ -24,9 +22,8 @@ public class ApplicationService {
     @Autowired
     private MedicalAppointmentRepository medicalAppointmentRepository;
 
-    // uploaded file saves on computer
-    // folder creates automatically if it doesnt exist
-    private final String UPLOAD_DIR = "uploads/applications/";
+    @Autowired
+    private CloudinaryUploadService cloudinaryUploadService;
 
     // ─── create new application ──────────────────────────────────────
     public LicenseApplication createApplication(
@@ -80,10 +77,10 @@ public class ApplicationService {
             throw new IllegalStateException("You already have an active licence application on file. If your application was rejected, you may reapply.");
         }
 
-        String nicCopyPath      = saveFile(nicCopy, "nic");
-        String passportPhotoPath = saveFile(passportPhoto, "passport");
+        String nicCopyPath       = cloudinaryUploadService.upload(nicCopy, "drivelink/applications");
+        String passportPhotoPath = cloudinaryUploadService.upload(passportPhoto, "drivelink/applications");
         String medicalReportPath = (medicalReport != null && !medicalReport.isEmpty())
-                ? saveFile(medicalReport, "medical") : null;
+                ? cloudinaryUploadService.upload(medicalReport, "drivelink/applications") : null;
 
         LicenseApplication app = new LicenseApplication();
         app.setApplicantId(applicantId);
@@ -233,18 +230,4 @@ public class ApplicationService {
         applicationRepository.deleteById(id);
     }
 
-    // ─── helper: save file to disk ────────────────────────────────────
-    private String saveFile(MultipartFile file, String prefix) throws IOException {
-        Path uploadPath = Paths.get(UPLOAD_DIR);
-        if (!Files.exists(uploadPath)) Files.createDirectories(uploadPath);
-
-        String originalName = file.getOriginalFilename();
-        String extension    = originalName != null && originalName.contains(".")
-                ? originalName.substring(originalName.lastIndexOf(".")) : ".bin";
-        String newFileName  = prefix + "_" + UUID.randomUUID() + extension;
-
-        Path filePath = uploadPath.resolve(newFileName);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-        return UPLOAD_DIR + newFileName;
-    }
 }

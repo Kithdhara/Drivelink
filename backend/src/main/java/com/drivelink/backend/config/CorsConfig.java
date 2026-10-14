@@ -10,7 +10,12 @@ public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:5173") // React frontend URL
+                .allowedOriginPatterns(
+                        "http://localhost:5173",          // local dev (Vite)
+                        "http://localhost:3000",          // local dev (alt)
+                        "https://*.vercel.app",           // any Vercel preview/production URL
+                        "https://drivelink.vercel.app"    // your custom Vercel URL (update if you rename)
+                )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
