@@ -152,11 +152,11 @@ public class ApplicationService {
 
         // Replace documents if new files provided
         if (nicCopy != null && !nicCopy.isEmpty())
-            app.setNicCopyPath(saveFile(nicCopy, "nic"));
+            app.setNicCopyPath(cloudinaryUploadService.upload(nicCopy, "drivelink/applications"));
         if (passportPhoto != null && !passportPhoto.isEmpty())
-            app.setPassportPhotoPath(saveFile(passportPhoto, "passport"));
+            app.setPassportPhotoPath(cloudinaryUploadService.upload(passportPhoto, "drivelink/applications"));
         if (medicalReport != null && !medicalReport.isEmpty())
-            app.setMedicalReportPath(saveFile(medicalReport, "medical"));
+            app.setMedicalReportPath(cloudinaryUploadService.upload(medicalReport, "drivelink/applications"));
 
         app.setUpdatedAt(LocalDateTime.now());
         return Optional.of(applicationRepository.save(app));
