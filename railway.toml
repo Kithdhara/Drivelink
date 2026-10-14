@@ -1,13 +1,12 @@
 # railway.toml
-# Tells Railway to build the backend/ subdirectory, not the repo root.
+# Uses a root Dockerfile to build the Spring Boot backend.
 # See: https://docs.railway.app/reference/config-as-code
 
 [build]
-builder = "NIXPACKS"
-buildCommand = "cd backend && chmod +x ./mvnw && ./mvnw clean package -DskipTests"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "java -jar backend/target/*.jar"
 healthcheckPath = "/api/auth/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
