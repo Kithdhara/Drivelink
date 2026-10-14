@@ -40,6 +40,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- H2 In-Memory Database (safe fallback) -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
 		<!-- Cloudinary SDK for cloud file uploads -->
 		<dependency>
 			<groupId>com.cloudinary</groupId>
